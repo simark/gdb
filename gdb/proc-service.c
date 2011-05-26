@@ -25,7 +25,8 @@
 #include "symtab.h"
 #include "target.h"
 #include "regcache.h"
-
+#include "objfiles.h"
+#include "filenames.h"
 #include "gdb_proc_service.h"
 
 #include <sys/procfs.h>
@@ -201,9 +202,21 @@ ps_pglobal_lookup (gdb_ps_prochandle_t ph, const char *obj,
 		   const char *name, psaddr_t *sym_addr)
 {
   struct minimal_symbol *ms;
+  struct objfile *objfile;
 
-  /* FIXME: kettenis/2000-09-03: What should we do with OBJ?  */
-  ms = lookup_minimal_symbol (name, NULL, NULL);
+  ALL_OBJFILES (objfile)
+    {
+      const char *base;
+
+      base = lbasename (objfile->name);
+      if (filename_cmp (base, obj) == 0)
+	break;
+    }
+
+  if (objfile == NULL)
+    return PS_NOSYM;
+
+  ms = lookup_minimal_symbol (name, NULL, objfile);
   if (ms == NULL)
     return PS_NOSYM;
 
