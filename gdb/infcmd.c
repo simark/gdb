@@ -492,12 +492,19 @@ Start it from the beginning? ")))
     }
 }
 
+enum run_cmd
+  {
+    run_mode,
+    start_mode,
+    create_mode
+  };
+
 /* Implement the "run" command.  If TBREAK_AT_MAIN is set, then insert
    a temporary breakpoint at the begining of the main program before
    running the program.  */
 
 static void
-run_command_1 (char *args, int from_tty, int tbreak_at_main)
+run_command_1 (char *args, int from_tty, enum run_cmd mode)
 {
   char *exec_file;
   struct cleanup *old_chain;
@@ -525,14 +532,14 @@ run_command_1 (char *args, int from_tty, int tbreak_at_main)
   reopen_exec_file ();
   reread_symbols ();
 
+  if (non_stop && !target_supports_non_stop ())
+    error (_("The target does not support running in non-stop mode."));
+
   /* Insert the temporary breakpoint if a location was specified.  */
-  if (tbreak_at_main)
+  if (mode == start_mode)
     tbreak_command (main_name (), 0);
 
   exec_file = (char *) get_exec_file (0);
-
-  if (non_stop && !target_supports_non_stop ())
-    error (_("The target does not support running in non-stop mode."));
 
   /* We keep symbols from add-symbol-file, on the grounds that the
      user might want to add some symbols before running the program
@@ -605,6 +612,13 @@ run_command_1 (char *args, int from_tty, int tbreak_at_main)
      has done its thing; now we are setting up the running program.  */
   post_create_inferior (&current_target, 0);
 
+  if (mode == create_mode)
+    {
+      do_cleanups (old_chain);
+      print_stack_frame (get_selected_frame (NULL), 0, SRC_AND_LOC);
+      return;
+    }
+
   /* Start the target running.  Do not use -1 continuation as it would skip
      breakpoint right at the entry point.  */
   proceed (regcache_read_pc (get_current_regcache ()), TARGET_SIGNAL_0, 0);
@@ -617,7 +631,7 @@ run_command_1 (char *args, int from_tty, int tbreak_at_main)
 static void
 run_command (char *args, int from_tty)
 {
-  run_command_1 (args, from_tty, 0);
+  run_command_1 (args, from_tty, run_mode);
 }
 
 static void
@@ -640,8 +654,14 @@ start_command (char *args, int from_tty)
     error (_("No symbol table loaded.  Use the \"file\" command."));
 
   /* Run the program until reaching the main procedure...  */
-  run_command_1 (args, from_tty, 1);
+  run_command_1 (args, from_tty, start_mode);
 } 
+
+static void
+create_command (char *args, int from_tty)
+{
+  run_command_1 (args, from_tty, create_mode);
+}
 
 static int
 proceed_thread_callback (struct thread_info *thread, void *arg)
@@ -3084,6 +3104,12 @@ use \"set args\" without arguments."));
 	     _("Start debugged program with no arguments."));
 
   c = add_com ("start", class_run, start_command, _("\
+Run the debugged program until the beginning of the main procedure.\n\
+You may specify arguments to give to your program, just as with the\n\
+\"run\" command."));
+  set_cmd_completer (c, filename_completer);
+
+  c = add_com ("create", class_run, create_command, _("\
 Run the debugged program until the beginning of the main procedure.\n\
 You may specify arguments to give to your program, just as with the\n\
 \"run\" command."));
