@@ -395,16 +395,22 @@ extern void *vec_o_reserve (void *, int, size_t, size_t);
   ((void)((expr) ? 0 : (gdb_assert_fail (op, file_, line_, \
 					 ASSERT_FUNCTION), 0)))
 
-#define VEC(T) VEC_##T
+#define VEC_TAG(T) VEC_##T
 #define VEC_OP(T,OP) VEC_##T##_##OP
 
+#define DEC_VEC(T)							  \
+  struct VEC_TAG (T)
+
 #define VEC_T(T)							  \
-typedef struct VEC(T)							  \
+struct VEC_TAG (T)							  \
 {									  \
   unsigned num;								  \
   unsigned alloc;							  \
   T vec[1];								  \
-} VEC(T)
+}
+
+#define VEC(T) \
+  struct VEC_TAG (T)
 
 /* Vector of integer-like object.  */
 #define DEF_VEC_I(T)							  \
