@@ -44,6 +44,7 @@
 #include "tracepoint.h"
 #include "gdb/fileio.h"
 #include "agent.h"
+#include "interps.h"
 
 static void target_info (char *, int);
 
@@ -498,6 +499,13 @@ target_terminal_inferior (void)
      this point the target is not async yet.  However, if sync_execution
      is not set, we know it will become async prior to resume.  */
   if (target_can_async_p () && !sync_execution)
+    return;
+
+  /* With MI, always leave GDB in control of the terminal.  MI
+     commands (e.g., -exec-interrupt) should still work even if the
+     user enters a synchronous execution command (e.g.,
+     -interpreter-exec console "c").  */
+  if (ui_out_is_mi_like_p (interp_ui_out (top_level_interpreter ())))
     return;
 
   /* If GDB is resuming the inferior in the foreground, install
