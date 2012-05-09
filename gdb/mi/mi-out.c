@@ -73,6 +73,7 @@ static int mi_redirect (struct ui_out *uiout, struct ui_file *outstream);
 
 struct ui_out_impl mi_ui_out_impl =
 {
+  NULL,
   mi_table_begin,
   mi_table_body,
   mi_table_end,

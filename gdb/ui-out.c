@@ -191,6 +191,7 @@ static void default_flush (struct ui_out *uiout);
 
 struct ui_out_impl default_ui_out_impl =
 {
+  NULL, /* dtor */
   default_table_begin,
   default_table_body,
   default_table_end,
@@ -1133,6 +1134,16 @@ ui_out_new (struct ui_out_impl *impl, void *data,
   uiout->table.header_last = NULL;
   uiout->table.header_next = NULL;
   return uiout;
+}
+
+/* Free UIOUT.  */
+
+void
+ui_out_free (struct ui_out *uiout)
+{
+  if (uiout->impl->dtor != NULL)
+    uiout->impl->dtor (uiout);
+  xfree (uiout);
 }
 
 /* Standard gdb initialization hook.  */

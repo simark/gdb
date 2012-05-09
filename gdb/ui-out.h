@@ -181,6 +181,7 @@ extern int ui_out_is_mi_like_p (struct ui_out *uiout);
 
 /* Type definition of all implementation functions.  */
 
+typedef void (ui_out_dtor_ftype) (struct ui_out * uiout);
 typedef void (table_begin_ftype) (struct ui_out * uiout,
 				  int nbrofcols, int nr_rows,
 				  const char *tblid);
@@ -230,6 +231,7 @@ typedef int (redirect_ftype) (struct ui_out * uiout,
 
 struct ui_out_impl
   {
+    ui_out_dtor_ftype *dtor;
     table_begin_ftype *table_begin;
     table_body_ftype *table_body;
     table_end_ftype *table_end;
@@ -260,6 +262,10 @@ extern void uo_field_string (struct ui_out *uiout, int fldno, int width,
 extern struct ui_out *ui_out_new (struct ui_out_impl *impl,
 				  void *data,
 				  int flags);
+
+/* Free UIOUT.  */
+
+extern void ui_out_free (struct ui_out *uiout);
 
 /* Redirect the ouptut of a ui_out object temporarily.  */
 

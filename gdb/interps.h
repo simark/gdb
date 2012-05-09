@@ -78,6 +78,8 @@ extern void current_interp_command_loop (void);
 extern void *top_level_interpreter_data (void);
 extern struct interp *top_level_interpreter (void);
 
+extern struct interp *command_interp (void);
+
 /* True if the current interpreter is in async mode, false if in sync
    mode.  If in sync mode, running a synchronous execution command
    (with execute_command, e.g, "next") will not return until the
