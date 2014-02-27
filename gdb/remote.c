@@ -5714,6 +5714,10 @@ Packet: '%s'\n"),
 	event->ptid = pid_to_ptid (pid);
       }
       break;
+    case 'N':
+      event->ws.kind = TARGET_WAITKIND_NO_RESUMED;
+      event->ptid = minus_one_ptid;
+      break;
     }
 
   if (non_stop && ptid_equal (event->ptid, null_ptid))
@@ -5815,7 +5819,8 @@ process_stop_reply (struct stop_reply *stop_reply,
     ptid = inferior_ptid;
 
   if (status->kind != TARGET_WAITKIND_EXITED
-      && status->kind != TARGET_WAITKIND_SIGNALLED)
+      && status->kind != TARGET_WAITKIND_SIGNALLED
+      && status->kind != TARGET_WAITKIND_NO_RESUMED)
     {
       struct remote_state *rs = get_remote_state ();
 
@@ -5984,7 +5989,7 @@ remote_wait_as (ptid_t ptid, struct target_waitstatus *status, int options)
       remote_fileio_request (buf, rs->ctrlc_pending_p);
       rs->ctrlc_pending_p = 0;
       break;
-    case 'T': case 'S': case 'X': case 'W':
+    case 'N': case 'T': case 'S': case 'X': case 'W':
       {
 	struct stop_reply *stop_reply
 	  = (struct stop_reply *) remote_notif_parse (&notif_client_stop,
@@ -6028,7 +6033,9 @@ remote_wait_as (ptid_t ptid, struct target_waitstatus *status, int options)
       break;
     }
 
-  if (status->kind == TARGET_WAITKIND_IGNORE)
+  if (status->kind == TARGET_WAITKIND_NO_RESUMED)
+    return minus_one_ptid;
+  else if (status->kind == TARGET_WAITKIND_IGNORE)
     {
       /* Nothing interesting happened.  If we're doing a non-blocking
 	 poll, we're done.  Otherwise, go back to waiting.  */

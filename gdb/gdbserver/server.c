@@ -62,6 +62,7 @@ int run_once;
 
 int multi_process;
 int non_stop;
+int target_waitkind_no_resumed = 1;
 
 /* Whether we should attempt to disable the operating system's address
    space randomization feature before starting an inferior.  */
@@ -1871,6 +1872,9 @@ handle_query (char *own_buf, int packet_len, int *new_packet_len_p)
 	  free (qsupported);
 	}
 
+      /* FIXME */
+      target_waitkind_no_resumed = 1;
+
       sprintf (own_buf,
 	       "PacketSize=%x;QPassSignals+;QProgramSignals+",
 	       PBUFSIZ - 1);
@@ -2367,7 +2371,8 @@ resume (struct thread_resume *actions, size_t num_actions)
     {
       last_ptid = mywait (minus_one_ptid, &last_status, 0, 1);
 
-      if (last_status.kind == TARGET_WAITKIND_NO_RESUMED)
+      if (last_status.kind == TARGET_WAITKIND_NO_RESUMED
+	  && !target_waitkind_no_resumed)
 	{
 	  /* No proper RSP support for this yet.  At least return
 	     error.  */
@@ -3269,6 +3274,7 @@ main (int argc, char *argv[])
     {
       noack_mode = 0;
       multi_process = 0;
+      target_waitkind_no_resumed = 0;
       /* Be sure we're out of tfind mode.  */
       current_traceframe = -1;
 
@@ -3896,6 +3902,18 @@ handle_serial_event (int err, gdb_client_data client_data)
   return 0;
 }
 
+static void
+push_stop_notification (ptid_t ptid, struct target_waitstatus *status)
+{
+  struct vstop_notif *vstop_notif
+    = xmalloc (sizeof (struct vstop_notif));
+
+  vstop_notif->status = *status;
+  vstop_notif->ptid = ptid;
+  /* Push Stop notification.  */
+  notif_push (&notif_stop, (struct notif_event *) vstop_notif);
+}
+
 /* Event-loop callback for target events.  */
 
 int
@@ -3909,7 +3927,9 @@ handle_target_event (int err, gdb_client_data client_data)
 
   if (last_status.kind == TARGET_WAITKIND_NO_RESUMED)
     {
-      /* No RSP support for this yet.  */
+      if (gdb_connected ()
+	  && target_waitkind_no_resumed)
+	push_stop_notification (null_ptid, &last_status);
     }
   else if (last_status.kind != TARGET_WAITKIND_IGNORE)
     {
@@ -3964,16 +3984,7 @@ handle_target_event (int err, gdb_client_data client_data)
 			  target_pid_to_str (last_ptid));
 	}
       else
-	{
-	  struct vstop_notif *vstop_notif
-	    = xmalloc (sizeof (struct vstop_notif));
-
-	  vstop_notif->status = last_status;
-	  vstop_notif->ptid = last_ptid;
-	  /* Push Stop notification.  */
-	  notif_push (&notif_stop,
-		      (struct notif_event *) vstop_notif);
-	}
+	push_stop_notification (last_ptid, &last_status);
     }
 
   /* Be sure to not change the selected inferior behind GDB's back.
