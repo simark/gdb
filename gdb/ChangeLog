@@ -1,3 +1,8 @@
+2015-02-27  Pedro Alves  <palves@redhat.com>
+
+	* tracepoint.c (gdb_agent_helper_thread): Cast 'sockaddr' to
+	'struct sockaddr' pointer in 'accept' call.
+
 2015-02-27  Simon Marchi  <simon.marchi@ericsson.com>
 
 	* python/python.c (python_GdbModuleDef): Rename GdbMethods to
