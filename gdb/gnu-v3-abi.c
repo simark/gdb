@@ -905,7 +905,6 @@ print_one_vtable (struct gdbarch *gdbarch, struct value *value,
       /* Initialize it just to avoid a GCC false warning.  */
       CORE_ADDR addr = 0;
       struct value *vfn;
-      volatile struct gdb_exception ex;
 
       printf_filtered ("[%d]: ", i);
 
@@ -916,12 +915,16 @@ print_one_vtable (struct gdbarch *gdbarch, struct value *value,
       if (gdbarch_vtable_function_descriptors (gdbarch))
 	vfn = value_addr (vfn);
 
-      TRY_CATCH (ex, RETURN_MASK_ERROR)
+      TRY
 	{
 	  addr = value_as_address (vfn);
 	}
-      if (ex.reason < 0)
-	printf_filtered (_("<error: %s>"), ex.message);
+      CATCH (ex, RETURN_MASK_ERROR)
+	{
+	  printf_filtered (_("<error: %s>"), ex.message);
+	}
+      END_CATCH
+
       else
 	print_function_pointer_address (opts, gdbarch, addr, gdb_stdout);
       printf_filtered ("\n");

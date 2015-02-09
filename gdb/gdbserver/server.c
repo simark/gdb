@@ -3124,19 +3124,19 @@ static int exit_code;
 static void
 detach_or_kill_for_exit_cleanup (void *ignore)
 {
-  volatile struct gdb_exception exception;
 
-  TRY_CATCH (exception, RETURN_MASK_ALL)
+  TRY
     {
       detach_or_kill_for_exit ();
     }
 
-  if (exception.reason < 0)
+  CATCH (exception, RETURN_MASK_ALL)
     {
       fflush (stdout);
       fprintf (stderr, "Detach or kill failed: %s\n", exception.message);
       exit_code = 1;
     }
+  END_CATCH
 }
 
 /* Main function.  This is called by the real "main" function,
@@ -3369,7 +3369,6 @@ captured_main (int argc, char *argv[])
 
   while (1)
     {
-      volatile struct gdb_exception exception;
 
       noack_mode = 0;
       multi_process = 0;
@@ -3379,7 +3378,7 @@ captured_main (int argc, char *argv[])
 
       remote_open (port);
 
-      TRY_CATCH (exception, RETURN_MASK_ERROR)
+      TRY
 	{
 	  /* Wait for events.  This will return when all event sources
 	     are removed from the event loop.  */
@@ -3432,6 +3431,10 @@ captured_main (int argc, char *argv[])
 		}
 	    }
 	}
+      CATCH (exception, RETURN_MASK_ERROR)
+	{
+	}
+      END_CATCH
 
       if (exception.reason == RETURN_ERROR)
 	{
@@ -3449,12 +3452,15 @@ captured_main (int argc, char *argv[])
 int
 main (int argc, char *argv[])
 {
-  volatile struct gdb_exception exception;
 
-  TRY_CATCH (exception, RETURN_MASK_ALL)
+  TRY
     {
       captured_main (argc, argv);
     }
+  CATCH (exception, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
 
   /* captured_main should never return.  */
   gdb_assert (exception.reason < 0);

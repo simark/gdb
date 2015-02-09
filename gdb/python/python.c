@@ -568,17 +568,21 @@ gdbpy_parameter (PyObject *self, PyObject *args)
   const char *arg;
   char *newarg;
   int found = -1;
-  volatile struct gdb_exception except;
 
   if (! PyArg_ParseTuple (args, "s", &arg))
     return NULL;
 
   newarg = concat ("show ", arg, (char *) NULL);
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       found = lookup_cmd_composition (newarg, &alias, &prefix, &cmd);
     }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
+
   xfree (newarg);
   GDB_PY_HANDLE_EXCEPTION (except);
   if (!found)
@@ -619,7 +623,6 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
   const char *arg;
   PyObject *from_tty_obj = NULL, *to_string_obj = NULL;
   int from_tty, to_string;
-  volatile struct gdb_exception except;
   static char *keywords[] = {"command", "from_tty", "to_string", NULL };
   char *result = NULL;
 
@@ -646,7 +649,7 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
       to_string = cmp;
     }
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       /* Copy the argument text in case the command modifies it.  */
       char *copy = xstrdup (arg);
@@ -666,7 +669,11 @@ execute_gdb_command (PyObject *self, PyObject *args, PyObject *kw)
 
       do_cleanups (cleanup);
     }
-  GDB_PY_HANDLE_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
 
   /* Do any commands attached to breakpoint we stopped at.  */
   bpstat_do_actions ();
@@ -719,7 +726,6 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
   PyObject *result = NULL;
   PyObject *return_result = NULL;
   PyObject *unparsed = NULL;
-  volatile struct gdb_exception except;
 
   if (! PyArg_ParseTuple (args, "|s", &arg))
     return NULL;
@@ -727,7 +733,7 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
   cleanups = make_cleanup (null_cleanup, NULL);
 
   sals.sals = NULL;
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       if (arg)
 	{
@@ -743,6 +749,10 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
 	  sals.nelts = 1;
 	}
     }
+  CATCH (except, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
 
   if (sals.sals != NULL && sals.sals != &sal)
     {
@@ -824,16 +834,19 @@ gdbpy_parse_and_eval (PyObject *self, PyObject *args)
 {
   const char *expr_str;
   struct value *result = NULL;
-  volatile struct gdb_exception except;
 
   if (!PyArg_ParseTuple (args, "s", &expr_str))
     return NULL;
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       result = parse_and_eval (expr_str);
     }
-  GDB_PY_HANDLE_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
 
   return value_to_value_object (result);
 }
@@ -845,13 +858,12 @@ static PyObject *
 gdbpy_find_pc_line (PyObject *self, PyObject *args)
 {
   gdb_py_ulongest pc_llu;
-  volatile struct gdb_exception except;
   PyObject *result = NULL; /* init for gcc -Wall */
 
   if (!PyArg_ParseTuple (args, GDB_PY_LLU_ARG, &pc_llu))
     return NULL;
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       struct symtab_and_line sal;
       CORE_ADDR pc;
@@ -860,7 +872,11 @@ gdbpy_find_pc_line (PyObject *self, PyObject *args)
       sal = find_pc_line (pc, 0);
       result = symtab_and_line_to_sal_object (sal);
     }
-  GDB_PY_HANDLE_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
 
   return result;
 }
@@ -1096,13 +1112,12 @@ gdbpy_write (PyObject *self, PyObject *args, PyObject *kw)
   const char *arg;
   static char *keywords[] = {"text", "stream", NULL };
   int stream_type = 0;
-  volatile struct gdb_exception except;
 
   if (! PyArg_ParseTupleAndKeywords (args, kw, "s|i", keywords, &arg,
 				     &stream_type))
     return NULL;
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       switch (stream_type)
         {
@@ -1120,7 +1135,11 @@ gdbpy_write (PyObject *self, PyObject *args, PyObject *kw)
           fprintf_filtered (gdb_stdout, "%s", arg);
         }
     }
-  GDB_PY_HANDLE_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDB_PY_HANDLE_EXCEPTION (except);
+    }
+  END_CATCH
 
   Py_RETURN_NONE;
 }
@@ -1165,7 +1184,6 @@ gdbpy_flush (PyObject *self, PyObject *args, PyObject *kw)
 void
 gdbpy_print_stack (void)
 {
-  volatile struct gdb_exception except;
 
   /* Print "none", just clear exception.  */
   if (gdbpy_should_print_stack == python_excp_none)
@@ -1179,10 +1197,14 @@ gdbpy_print_stack (void)
       /* PyErr_Print doesn't necessarily end output with a newline.
 	 This works because Python's stdout/stderr is fed through
 	 printf_filtered.  */
-      TRY_CATCH (except, RETURN_MASK_ALL)
+      TRY
 	{
 	  begin_line ();
 	}
+      CATCH (except, RETURN_MASK_ALL)
+	{
+	}
+      END_CATCH
     }
   /* Print "message", just error print message.  */
   else
@@ -1196,7 +1218,7 @@ gdbpy_print_stack (void)
       msg = gdbpy_exception_to_string (ptype, pvalue);
       type = gdbpy_obj_to_string (ptype);
 
-      TRY_CATCH (except, RETURN_MASK_ALL)
+      TRY
 	{
 	  if (msg == NULL)
 	    {
@@ -1210,6 +1232,10 @@ gdbpy_print_stack (void)
 	    fprintf_filtered (gdb_stderr, "Python Exception %s %s: \n",
 			      type, msg);
 	}
+      CATCH (except, RETURN_MASK_ALL)
+	{
+	}
+      END_CATCH
 
       Py_XDECREF (ptype);
       Py_XDECREF (pvalue);

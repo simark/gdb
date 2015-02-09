@@ -383,7 +383,6 @@ get_function_name (CORE_ADDR funaddr, char *buf, int buf_size)
 static struct gdb_exception
 run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 {
-  volatile struct gdb_exception e;
   int saved_in_infcall = call_thread->control.in_infcall;
   ptid_t call_thread_ptid = call_thread->ptid;
   int saved_sync_execution = sync_execution;
@@ -401,7 +400,7 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
   /* We want stop_registers, please...  */
   call_thread->control.proceed_to_finish = 1;
 
-  TRY_CATCH (e, RETURN_MASK_ALL)
+  TRY
     {
       int was_sync = sync_execution;
 
@@ -435,11 +434,12 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
      If all error()s out of proceed ended up calling normal_stop
      (and perhaps they should; it already does in the special case
      of error out of resume()), then we wouldn't need this.  */
-  if (e.reason < 0)
+  CATCH (e, RETURN_MASK_ALL)
     {
       if (call_thread != NULL)
 	breakpoint_auto_delete (call_thread->control.stop_bpstat);
     }
+  END_CATCH
 
   if (call_thread != NULL)
     call_thread->control.in_infcall = saved_in_infcall;

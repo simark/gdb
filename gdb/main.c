@@ -364,9 +364,8 @@ static int
 catch_command_errors (catch_command_errors_ftype *command,
 		      char *arg, int from_tty)
 {
-  volatile struct gdb_exception e;
 
-  TRY_CATCH (e, RETURN_MASK_ALL)
+  TRY
     {
       int was_sync = sync_execution;
 
@@ -374,6 +373,11 @@ catch_command_errors (catch_command_errors_ftype *command,
 
       maybe_wait_sync_command_done (was_sync);
     }
+  CATCH (e, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
+
   return handle_command_errors (e);
 }
 
@@ -387,9 +391,8 @@ static int
 catch_command_errors_const (catch_command_errors_const_ftype *command,
 			    const char *arg, int from_tty)
 {
-  volatile struct gdb_exception e;
 
-  TRY_CATCH (e, RETURN_MASK_ALL)
+  TRY
     {
       int was_sync = sync_execution;
 
@@ -397,6 +400,11 @@ catch_command_errors_const (catch_command_errors_const_ftype *command,
 
       maybe_wait_sync_command_done (was_sync);
     }
+  CATCH (e, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
+
   return handle_command_errors (e);
 }
 

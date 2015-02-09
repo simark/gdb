@@ -2221,25 +2221,25 @@ static struct agent_expr *
 parse_cond_to_aexpr (CORE_ADDR scope, struct expression *cond)
 {
   struct agent_expr *aexpr = NULL;
-  volatile struct gdb_exception ex;
 
   if (!cond)
     return NULL;
 
   /* We don't want to stop processing, so catch any errors
      that may show up.  */
-  TRY_CATCH (ex, RETURN_MASK_ERROR)
+  TRY
     {
       aexpr = gen_eval_for_expr (scope, cond);
     }
 
-  if (ex.reason < 0)
+  CATCH (ex, RETURN_MASK_ERROR)
     {
       /* If we got here, it means the condition could not be parsed to a valid
 	 bytecode expression and thus can't be evaluated on the target's side.
 	 It's no use iterating through the conditions.  */
       return NULL;
     }
+  END_CATCH
 
   /* We have a valid agent expression.  */
   return aexpr;
@@ -2361,7 +2361,6 @@ parse_cmd_to_aexpr (CORE_ADDR scope, char *cmd)
   struct cleanup *old_cleanups = 0;
   struct expression *expr, **argvec;
   struct agent_expr *aexpr = NULL;
-  volatile struct gdb_exception ex;
   const char *cmdrest;
   const char *format_start, *format_end;
   struct format_piece *fpieces;
@@ -2420,7 +2419,7 @@ parse_cmd_to_aexpr (CORE_ADDR scope, char *cmd)
 
   /* We don't want to stop processing, so catch any errors
      that may show up.  */
-  TRY_CATCH (ex, RETURN_MASK_ERROR)
+  TRY
     {
       aexpr = gen_printf (scope, gdbarch, 0, 0,
 			  format_start, format_end - format_start,
@@ -2429,13 +2428,14 @@ parse_cmd_to_aexpr (CORE_ADDR scope, char *cmd)
 
   do_cleanups (old_cleanups);
 
-  if (ex.reason < 0)
+  CATCH (ex, RETURN_MASK_ERROR)
     {
       /* If we got here, it means the command could not be parsed to a valid
 	 bytecode expression and thus can't be evaluated on the target's side.
 	 It's no use iterating through the other commands.  */
       return NULL;
     }
+  END_CATCH
 
   /* We have a valid agent expression, return it.  */
   return aexpr;
@@ -2572,7 +2572,6 @@ insert_bp_location (struct bp_location *bl,
 {
   enum errors bp_err = GDB_NO_ERROR;
   const char *bp_err_message = NULL;
-  volatile struct gdb_exception e;
 
   if (!should_be_inserted (bl) || (bl->inserted && !bl->needs_update))
     return 0;
@@ -2675,7 +2674,7 @@ insert_bp_location (struct bp_location *bl,
 	  || !(section_is_overlay (bl->section)))
 	{
 	  /* No overlay handling: just set the breakpoint.  */
-	  TRY_CATCH (e, RETURN_MASK_ALL)
+	  TRY
 	    {
 	      int val;
 
@@ -2683,11 +2682,12 @@ insert_bp_location (struct bp_location *bl,
 	      if (val)
 		bp_err = GENERIC_ERROR;
 	    }
-	  if (e.reason < 0)
+	  CATCH (e, RETURN_MASK_ALL)
 	    {
 	      bp_err = e.error;
 	      bp_err_message = e.message;
 	    }
+	  END_CATCH
 	}
       else
 	{
@@ -2710,7 +2710,7 @@ insert_bp_location (struct bp_location *bl,
 		  bl->overlay_target_info.reqstd_address = addr;
 
 		  /* No overlay handling: just set the breakpoint.  */
-		  TRY_CATCH (e, RETURN_MASK_ALL)
+		  TRY
 		    {
 		      int val;
 
@@ -2719,11 +2719,12 @@ insert_bp_location (struct bp_location *bl,
 		      if (val)
 			bp_err = GENERIC_ERROR;
 		    }
-		  if (e.reason < 0)
+		  CATCH (e, RETURN_MASK_ALL)
 		    {
 		      bp_err = e.error;
 		      bp_err_message = e.message;
 		    }
+		  END_CATCH
 
 		  if (bp_err != GDB_NO_ERROR)
 		    fprintf_unfiltered (tmp_error_stream,
@@ -2736,7 +2737,7 @@ insert_bp_location (struct bp_location *bl,
 	  if (section_is_mapped (bl->section))
 	    {
 	      /* Yes.  This overlay section is mapped into memory.  */
-	      TRY_CATCH (e, RETURN_MASK_ALL)
+	      TRY
 	        {
 		  int val;
 
@@ -2744,11 +2745,12 @@ insert_bp_location (struct bp_location *bl,
 		  if (val)
 		    bp_err = GENERIC_ERROR;
 	        }
-	      if (e.reason < 0)
+	      CATCH (e, RETURN_MASK_ALL)
 	        {
 		  bp_err = e.error;
 		  bp_err_message = e.message;
 	        }
+	      END_CATCH
 	    }
 	  else
 	    {
@@ -9972,7 +9974,6 @@ create_breakpoint (struct gdbarch *gdbarch,
 		   int from_tty, int enabled, int internal,
 		   unsigned flags)
 {
-  volatile struct gdb_exception e;
   char *copy_arg = NULL;
   char *addr_start = arg;
   struct linespec_result canonical;
@@ -9986,11 +9987,15 @@ create_breakpoint (struct gdbarch *gdbarch,
 
   init_linespec_result (&canonical);
 
-  TRY_CATCH (e, RETURN_MASK_ALL)
+  TRY
     {
       ops->create_sals_from_address (&arg, &canonical, type_wanted,
 				     addr_start, &copy_arg);
     }
+  CATCH (e, RETURN_MASK_ALL)
+    {
+    }
+  END_CATCH
 
   /* If caller is interested in rc value from parse, set value.  */
   switch (e.reason)
@@ -11311,7 +11316,6 @@ static void
 watch_command_1 (const char *arg, int accessflag, int from_tty,
 		 int just_location, int internal)
 {
-  volatile struct gdb_exception e;
   struct breakpoint *b, *scope_breakpoint = NULL;
   struct expression *exp;
   const struct block *exp_valid_block = NULL, *cond_exp_valid_block = NULL;
@@ -11623,17 +11627,18 @@ watch_command_1 (const char *arg, int accessflag, int from_tty,
   if (!just_location)
     value_free_to_mark (mark);
 
-  TRY_CATCH (e, RETURN_MASK_ALL)
+  TRY
     {
       /* Finally update the new watchpoint.  This creates the locations
 	 that should be inserted.  */
       update_watchpoint (w, 1);
     }
-  if (e.reason < 0)
+  CATCH (e, RETURN_MASK_ALL)
     {
       delete_breakpoint (b);
       throw_exception (e);
     }
+  END_CATCH
 
   install_breakpoint (internal, b, 1);
   do_cleanups (back_to);
@@ -12980,10 +12985,15 @@ breakpoint_retire_moribund (void)
 static void
 update_global_location_list_nothrow (enum ugll_insert_mode insert_mode)
 {
-  volatile struct gdb_exception e;
 
-  TRY_CATCH (e, RETURN_MASK_ERROR)
-    update_global_location_list (insert_mode);
+  TRY
+    {
+      update_global_location_list (insert_mode);
+    }
+  CATCH (e, RETURN_MASK_ERROR)
+    {
+    }
+  END_CATCH
 }
 
 /* Clear BKP from a BPS.  */
@@ -14454,22 +14464,22 @@ update_breakpoint_locations (struct breakpoint *b,
       if (b->cond_string != NULL)
 	{
 	  const char *s;
-	  volatile struct gdb_exception e;
 
 	  s = b->cond_string;
-	  TRY_CATCH (e, RETURN_MASK_ERROR)
+	  TRY
 	    {
 	      new_loc->cond = parse_exp_1 (&s, sals.sals[i].pc,
 					   block_for_pc (sals.sals[i].pc), 
 					   0);
 	    }
-	  if (e.reason < 0)
+	  CATCH (e, RETURN_MASK_ERROR)
 	    {
 	      warning (_("failed to reevaluate condition "
 			 "for breakpoint %d: %s"), 
 		       b->number, e.message);
 	      new_loc->enabled = 0;
 	    }
+	  END_CATCH
 	}
 
       if (sals_end.nelts)
@@ -14533,16 +14543,15 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
 {
   char *s;
   struct symtabs_and_lines sals = {0};
-  volatile struct gdb_exception e;
 
   gdb_assert (b->ops != NULL);
   s = addr_string;
 
-  TRY_CATCH (e, RETURN_MASK_ERROR)
+  TRY
     {
       b->ops->decode_linespec (b, &s, &sals);
     }
-  if (e.reason < 0)
+  CATCH (e, RETURN_MASK_ERROR)
     {
       int not_found_and_ok = 0;
       /* For pending breakpoints, it's expected that parsing will
@@ -14571,6 +14580,7 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
 	  throw_exception (e);
 	}
     }
+  END_CATCH
 
   if (e.reason == 0 || e.error != NOT_FOUND_ERROR)
     {
@@ -15063,9 +15073,8 @@ enable_breakpoint_disp (struct breakpoint *bpt, enum bpdisp disposition,
     {
       /* Initialize it just to avoid a GCC false warning.  */
       enum enable_state orig_enable_state = 0;
-      volatile struct gdb_exception e;
 
-      TRY_CATCH (e, RETURN_MASK_ALL)
+      TRY
 	{
 	  struct watchpoint *w = (struct watchpoint *) bpt;
 
@@ -15073,13 +15082,14 @@ enable_breakpoint_disp (struct breakpoint *bpt, enum bpdisp disposition,
 	  bpt->enable_state = bp_enabled;
 	  update_watchpoint (w, 1 /* reparse */);
 	}
-      if (e.reason < 0)
+      CATCH (e, RETURN_MASK_ALL)
 	{
 	  bpt->enable_state = orig_enable_state;
 	  exception_fprintf (gdb_stderr, e, _("Cannot enable watchpoint %d: "),
 			     bpt->number);
 	  return;
 	}
+      END_CATCH
     }
 
   bpt->enable_state = bp_enabled;
@@ -15893,19 +15903,21 @@ save_breakpoints (char *filename, int from_tty,
 
     if (tp->type != bp_dprintf && tp->commands)
       {
-	volatile struct gdb_exception ex;	
 
 	fprintf_unfiltered (fp, "  commands\n");
 	
 	ui_out_redirect (current_uiout, fp);
-	TRY_CATCH (ex, RETURN_MASK_ALL)
+	TRY
 	  {
 	    print_command_lines (current_uiout, tp->commands->commands, 2);
 	  }
 	ui_out_redirect (current_uiout, NULL);
 
-	if (ex.reason < 0)
-	  throw_exception (ex);
+	CATCH (ex, RETURN_MASK_ALL)
+	  {
+	    throw_exception (ex);
+	  }
+	END_CATCH
 
 	fprintf_unfiltered (fp, "  end\n");
       }

@@ -537,7 +537,6 @@ list_arg_or_local (const struct frame_arg *arg, enum what_to_list what,
 
   if (arg->val || arg->error)
     {
-      volatile struct gdb_exception except;
 
       if (arg->error)
 	except.message = arg->error;
@@ -545,7 +544,7 @@ list_arg_or_local (const struct frame_arg *arg, enum what_to_list what,
 	{
 	  /* TRY_CATCH has two statements, wrap it in a block.  */
 
-	  TRY_CATCH (except, RETURN_MASK_ERROR)
+	  TRY
 	    {
 	      struct value_print_options opts;
 
@@ -554,6 +553,10 @@ list_arg_or_local (const struct frame_arg *arg, enum what_to_list what,
 	      common_val_print (arg->val, stb, 0, &opts,
 				language_def (SYMBOL_LANGUAGE (arg->sym)));
 	    }
+	  CATCH (except, RETURN_MASK_ERROR)
+	    {
+	    }
+	  END_CATCH
 	}
       if (except.message)
 	fprintf_filtered (stb, _("<error reading variable: %s>"),

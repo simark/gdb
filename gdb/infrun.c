@@ -5943,10 +5943,9 @@ insert_exception_resume_breakpoint (struct thread_info *tp,
 				    struct frame_info *frame,
 				    struct symbol *sym)
 {
-  volatile struct gdb_exception e;
 
   /* We want to ignore errors here.  */
-  TRY_CATCH (e, RETURN_MASK_ERROR)
+  TRY
     {
       struct symbol *vsym;
       struct value *value;
@@ -5975,6 +5974,10 @@ insert_exception_resume_breakpoint (struct thread_info *tp,
 	  inferior_thread ()->control.exception_resume_breakpoint = bp;
 	}
     }
+  CATCH (e, RETURN_MASK_ERROR)
+    {
+    }
+  END_CATCH
 }
 
 /* A helper for check_exception_resume that sets an
@@ -6015,7 +6018,6 @@ static void
 check_exception_resume (struct execution_control_state *ecs,
 			struct frame_info *frame)
 {
-  volatile struct gdb_exception e;
   struct bound_probe probe;
   struct symbol *func;
 
@@ -6034,7 +6036,7 @@ check_exception_resume (struct execution_control_state *ecs,
   if (!func)
     return;
 
-  TRY_CATCH (e, RETURN_MASK_ERROR)
+  TRY
     {
       const struct block *b;
       struct block_iterator iter;
@@ -6071,6 +6073,10 @@ check_exception_resume (struct execution_control_state *ecs,
 	    }
 	}
     }
+  CATCH (e, RETURN_MASK_ERROR)
+    {
+    }
+  END_CATCH
 }
 
 static void
@@ -6113,7 +6119,6 @@ keep_going (struct execution_control_state *ecs)
     }
   else
     {
-      volatile struct gdb_exception e;
       struct regcache *regcache = get_current_regcache ();
       int remove_bp;
       int remove_wps;
@@ -6153,16 +6158,17 @@ keep_going (struct execution_control_state *ecs)
 	clear_step_over_info ();
 
       /* Stop stepping if inserting breakpoints fails.  */
-      TRY_CATCH (e, RETURN_MASK_ERROR)
+      TRY
 	{
 	  insert_breakpoints ();
 	}
-      if (e.reason < 0)
+      CATCH (e, RETURN_MASK_ERROR)
 	{
 	  exception_print (gdb_stderr, e);
 	  stop_waiting (ecs);
 	  return;
 	}
+      END_CATCH
 
       ecs->event_thread->control.trap_expected = (remove_bp || remove_wps);
 
