@@ -2063,8 +2063,11 @@ i386_frame_cache (struct frame_info *this_frame, void **this_cache)
     {
       i386_frame_cache_1 (this_frame, cache);
     }
-  if (ex.reason < 0 && ex.error != NOT_AVAILABLE_ERROR)
-    throw_exception (ex);
+  if (ex.reason < 0)
+    {
+      if (ex.error != NOT_AVAILABLE_ERROR)
+	throw_exception (ex);
+    }
 
   return cache;
 }
@@ -2238,8 +2241,11 @@ i386_epilogue_frame_cache (struct frame_info *this_frame, void **this_cache)
 
       cache->base_p = 1;
     }
-  if (ex.reason < 0 && ex.error != NOT_AVAILABLE_ERROR)
-    throw_exception (ex);
+  if (ex.reason < 0)
+    {
+      if (ex.error != NOT_AVAILABLE_ERROR)
+	throw_exception (ex);
+    }
 
   return cache;
 }
@@ -2431,8 +2437,11 @@ i386_sigtramp_frame_cache (struct frame_info *this_frame, void **this_cache)
 
       cache->base_p = 1;
     }
-  if (ex.reason < 0 && ex.error != NOT_AVAILABLE_ERROR)
-    throw_exception (ex);
+  if (ex.reason < 0)
+    {
+      if (ex.error != NOT_AVAILABLE_ERROR)
+	throw_exception (ex);
+    }
 
   *this_cache = cache;
   return cache;
