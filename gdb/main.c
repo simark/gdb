@@ -364,7 +364,6 @@ static int
 catch_command_errors (catch_command_errors_ftype *command,
 		      char *arg, int from_tty)
 {
-
   TRY
     {
       int was_sync = sync_execution;
@@ -375,10 +374,11 @@ catch_command_errors (catch_command_errors_ftype *command,
     }
   CATCH (e, RETURN_MASK_ALL)
     {
+      return handle_command_errors (e);
     }
   END_CATCH
 
-  return handle_command_errors (e);
+  return 1;
 }
 
 /* Type of the command callback passed to catch_command_errors_const.  */
@@ -391,7 +391,6 @@ static int
 catch_command_errors_const (catch_command_errors_const_ftype *command,
 			    const char *arg, int from_tty)
 {
-
   TRY
     {
       int was_sync = sync_execution;
@@ -402,10 +401,11 @@ catch_command_errors_const (catch_command_errors_const_ftype *command,
     }
   CATCH (e, RETURN_MASK_ALL)
     {
+      return handle_command_errors (e);
     }
   END_CATCH
 
-  return handle_command_errors (e);
+  return 1;
 }
 
 /* Type of this option.  */

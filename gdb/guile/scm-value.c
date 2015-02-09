@@ -446,7 +446,7 @@ gdbscm_value_address (SCM self)
 	}
       END_CATCH
 
-      else
+      if (res_val != NULL)
 	address = vlscm_scm_from_value (res_val);
 
       do_cleanups (cleanup);
@@ -1198,6 +1198,7 @@ gdbscm_value_to_lazy_string (SCM self, SCM rest)
   int length = -1;
   SCM result = SCM_BOOL_F; /* -Wall */
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   /* The sequencing here, as everywhere else, is important.
      We can't have existing cleanups when a Scheme exception is thrown.  */
@@ -1221,8 +1222,9 @@ gdbscm_value_to_lazy_string (SCM self, SCM rest)
 
       do_cleanups (inner_cleanup);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

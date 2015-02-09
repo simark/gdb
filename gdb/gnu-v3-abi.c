@@ -904,6 +904,7 @@ print_one_vtable (struct gdbarch *gdbarch, struct value *value,
     {
       /* Initialize it just to avoid a GCC false warning.  */
       CORE_ADDR addr = 0;
+      int got_error = 0;
       struct value *vfn;
 
       printf_filtered ("[%d]: ", i);
@@ -922,10 +923,11 @@ print_one_vtable (struct gdbarch *gdbarch, struct value *value,
       CATCH (ex, RETURN_MASK_ERROR)
 	{
 	  printf_filtered (_("<error: %s>"), ex.message);
+	  got_error = 1;
 	}
       END_CATCH
 
-      else
+      if (!got_error)
 	print_function_pointer_address (opts, gdbarch, addr, gdb_stdout);
       printf_filtered ("\n");
     }

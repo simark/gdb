@@ -441,6 +441,7 @@ bppy_set_condition (PyObject *self, PyObject *newvalue, void *closure)
 {
   char *exp;
   gdbpy_breakpoint_object *self_bp = (gdbpy_breakpoint_object *) self;
+  struct gdb_exception except = exception_none;
 
   BPPY_SET_REQUIRE_VALID (self_bp);
 
@@ -463,8 +464,9 @@ bppy_set_condition (PyObject *self, PyObject *newvalue, void *closure)
     {
       set_breakpoint_condition (self_bp->bp, exp, 0);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

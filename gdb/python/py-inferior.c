@@ -562,6 +562,7 @@ infpy_read_memory (PyObject *self, PyObject *args, PyObject *kw)
 static PyObject *
 infpy_write_memory (PyObject *self, PyObject *args, PyObject *kw)
 {
+  struct gdb_exception except = exception_none;
   Py_ssize_t buf_len;
   const char *buffer;
   CORE_ADDR addr, length;
@@ -596,8 +597,9 @@ infpy_write_memory (PyObject *self, PyObject *args, PyObject *kw)
     {
       write_memory_with_notification (addr, (gdb_byte *) buffer, length);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 
@@ -710,6 +712,7 @@ get_char_buffer (PyObject *self, Py_ssize_t segment, char **ptrptr)
 static PyObject *
 infpy_search_memory (PyObject *self, PyObject *args, PyObject *kw)
 {
+  struct gdb_exception except = exception_none;
   CORE_ADDR start_addr, length;
   static char *keywords[] = { "address", "length", "pattern", NULL };
   PyObject *start_addr_obj, *length_obj;
@@ -774,8 +777,9 @@ infpy_search_memory (PyObject *self, PyObject *args, PyObject *kw)
 				    buffer, pattern_size,
 				    &found_addr);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

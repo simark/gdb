@@ -42,14 +42,13 @@ gdbpy_readline_wrapper (FILE *sys_stdin, FILE *sys_stdout,
     {
       p = command_line_input (prompt, 0, "python");
     }
-
-  /* Detect user interrupt (Ctrl-C).  */
-  if (except.reason == RETURN_QUIT)
-    return NULL;
-
   /* Handle errors by raising Python exceptions.  */
   CATCH (except, RETURN_MASK_ALL)
     {
+      /* Detect user interrupt (Ctrl-C).  */
+      if (except.reason == RETURN_QUIT)
+	return NULL;
+
       /* The thread state is nulled during gdbpy_readline_wrapper,
 	 with the original value saved in the following undocumented
 	 variable (see Python's Parser/myreadline.c and

@@ -139,18 +139,15 @@ require_btrace (void)
 static void
 record_btrace_enable_warn (struct thread_info *tp)
 {
-
   TRY
     {
       btrace_enable (tp, &record_btrace_conf);
     }
   CATCH (error, RETURN_MASK_ERROR)
     {
+      warning ("%s", error.message);
     }
   END_CATCH
-
-  if (error.message != NULL)
-    warning ("%s", error.message);
 }
 
 /* Callback function to disable branch tracing for one thread.  */
@@ -2237,14 +2234,10 @@ cmd_record_btrace_bts_start (char *args, int from_tty)
     }
   CATCH (exception, RETURN_MASK_ALL)
     {
-    }
-  END_CATCH
-
-  if (exception.error != 0)
-    {
       record_btrace_conf.format = BTRACE_FORMAT_NONE;
       throw_exception (exception);
     }
+  END_CATCH
 }
 
 /* Alias for "target record".  */
@@ -2264,14 +2257,10 @@ cmd_record_btrace_start (char *args, int from_tty)
     }
   CATCH (exception, RETURN_MASK_ALL)
     {
+      record_btrace_conf.format = BTRACE_FORMAT_NONE;
+      throw_exception (exception);
     }
   END_CATCH
-
-  if (exception.error == 0)
-    return;
-
-  record_btrace_conf.format = BTRACE_FORMAT_NONE;
-  throw_exception (exception);
 }
 
 /* The "set record btrace" command.  */

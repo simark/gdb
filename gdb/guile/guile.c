@@ -314,6 +314,7 @@ gdbscm_execute_gdb_command (SCM command_scm, SCM rest)
   char *command;
   char *result = NULL;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, keywords, "s#tt",
 			      command_scm, &command, rest,
@@ -345,8 +346,9 @@ gdbscm_execute_gdb_command (SCM command_scm, SCM rest)
 
       do_cleanups (inner_cleanups);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

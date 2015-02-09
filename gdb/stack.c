@@ -215,6 +215,7 @@ print_frame_arg (const struct frame_arg *arg)
   struct ui_out *uiout = current_uiout;
   struct cleanup *old_chain;
   struct ui_file *stb;
+  const char *error_message = NULL;
 
   stb = mem_fileopen ();
   old_chain = make_cleanup_ui_file_delete (stb);
@@ -252,11 +253,9 @@ print_frame_arg (const struct frame_arg *arg)
   else
     {
       if (arg->error)
-	except.message = arg->error;
+	error_message = arg->error;
       else
 	{
-	  /* TRY_CATCH has two statements, wrap it in a block.  */
-
 	  TRY
 	    {
 	      const struct language_defn *language;
@@ -288,12 +287,13 @@ print_frame_arg (const struct frame_arg *arg)
 	    }
 	  CATCH (except, RETURN_MASK_ERROR)
 	    {
+	      error_message = except.message;
 	    }
 	  END_CATCH
 	}
-      if (except.message)
+      if (error_message != NULL)
 	fprintf_filtered (stb, _("<error reading variable: %s>"),
-			  except.message);
+			  error_message);
     }
 
   ui_out_field_stream (uiout, "value", stb);
@@ -314,18 +314,19 @@ read_frame_local (struct symbol *sym, struct frame_info *frame,
 {
   struct value *val = NULL;
 
+  argp->sym = sym;
+  argp->val = NULL;
+  argp->error = NULL;
+
   TRY
     {
-      val = read_var_value (sym, frame);
+      argp->val = read_var_value (sym, frame);
     }
   CATCH (except, RETURN_MASK_ERROR)
     {
+      argp->error = xstrdup (except.message);
     }
   END_CATCH
-
-  argp->error = (val == NULL) ? xstrdup (except.message) : NULL;
-  argp->sym = sym;
-  argp->val = val;
 }
 
 /* Read in inferior function parameter SYM at FRAME into ARGP.  Caller is
@@ -349,14 +350,10 @@ read_frame_arg (struct symbol *sym, struct frame_info *frame,
 	}
       CATCH (except, RETURN_MASK_ERROR)
 	{
-	}
-      END_CATCH
-
-      if (!val)
-	{
 	  val_error = alloca (strlen (except.message) + 1);
 	  strcpy (val_error, except.message);
 	}
+      END_CATCH
     }
 
   if (SYMBOL_COMPUTED_OPS (sym) != NULL
@@ -374,21 +371,16 @@ read_frame_arg (struct symbol *sym, struct frame_info *frame,
 	}
       CATCH (except, RETURN_MASK_ERROR)
 	{
+	  if (except.error != NO_ENTRY_VALUE_ERROR)
+	    {
+	      entryval_error = (char *) alloca (strlen (except.message) + 1);
+	      strcpy (entryval_error, except.message);
+	    }
 	}
       END_CATCH
 
-      if (!entryval)
-	{
-	  entryval_error = alloca (strlen (except.message) + 1);
-	  strcpy (entryval_error, except.message);
-	}
-
-      if (except.error == NO_ENTRY_VALUE_ERROR
-	  || (entryval && value_optimized_out (entryval)))
-	{
-	  entryval = NULL;
-	  entryval_error = NULL;
-	}
+      if (entryval != NULL && value_optimized_out (entryval))
+	entryval = NULL;
 
       if (print_entry_values == print_entry_values_compact
 	  || print_entry_values == print_entry_values_default)
@@ -437,21 +429,21 @@ read_frame_arg (struct symbol *sym, struct frame_info *frame,
 		    }
 		  CATCH (except, RETURN_MASK_ERROR)
 		    {
+		      /* If the dereferenced content could not be
+			 fetched do not display anything.  */
+		      if (except.error == NO_ENTRY_VALUE_ERROR)
+			val_equal = 1;
+		      else if (except.message != NULL)
+			{
+			  entryval_error = (char *) alloca (strlen (except.message) + 1);
+			  strcpy (entryval_error, except.message);
+			}
 		    }
 		  END_CATCH
 
 		  /* Value was not a reference; and its content matches.  */
 		  if (val == val_deref)
 		    val_equal = 1;
-		  /* If the dereferenced content could not be fetched do not
-		     display anything.  */
-		  else if (except.error == NO_ENTRY_VALUE_ERROR)
-		    val_equal = 1;
-		  else if (except.message)
-		    {
-		      entryval_error = alloca (strlen (except.message) + 1);
-		      strcpy (entryval_error, except.message);
-		    }
 
 		  if (val_equal)
 		    entryval = NULL;
@@ -477,20 +469,18 @@ read_frame_arg (struct symbol *sym, struct frame_info *frame,
     {
       if (print_entry_values == print_entry_values_preferred)
 	{
+	  gdb_assert (val == NULL);
+
 	  TRY
 	    {
 	      val = read_var_value (sym, frame);
 	    }
 	  CATCH (except, RETURN_MASK_ERROR)
 	    {
-	    }
-	  END_CATCH
-
-	  if (!val)
-	    {
 	      val_error = alloca (strlen (except.message) + 1);
 	      strcpy (val_error, except.message);
 	    }
+	  END_CATCH
 	}
       if (print_entry_values == print_entry_values_only
 	  || print_entry_values == print_entry_values_both
@@ -1441,6 +1431,7 @@ frame_info (char *addr_exp, int from_tty)
   int frame_pc_p;
   /* Initialize it to avoid "may be used uninitialized" warning.  */
   CORE_ADDR caller_pc = 0;
+  int caller_pc_p = 0;
 
   fi = parse_frame_specification_1 (addr_exp, "No stack.", &selected_frame_p);
   gdbarch = get_frame_arch (fi);
@@ -1531,6 +1522,7 @@ frame_info (char *addr_exp, int from_tty)
   TRY
     {
       caller_pc = frame_unwind_caller_pc (fi);
+      caller_pc_p = 1;
     }
   CATCH (ex, RETURN_MASK_ERROR)
     {
@@ -1549,7 +1541,7 @@ frame_info (char *addr_exp, int from_tty)
     }
   END_CATCH
 
-  else
+  if (caller_pc_p)
     fputs_filtered (paddress (gdbarch, caller_pc), gdb_stdout);
   printf_filtered ("\n");
 
@@ -2604,6 +2596,7 @@ get_frame_language (void)
   if (frame)
     {
       CORE_ADDR pc = 0;
+      int pc_p = 0;
 
       /* We determine the current frame language by looking up its
          associated symtab.  To retrieve this symtab, we use the frame
@@ -2617,6 +2610,7 @@ get_frame_language (void)
       TRY
 	{
 	  pc = get_frame_address_in_block (frame);
+	  pc_p = 1;
 	}
       CATCH (ex, RETURN_MASK_ERROR)
 	{
@@ -2625,7 +2619,7 @@ get_frame_language (void)
 	}
       END_CATCH
 
-      else
+      if (pc_p)
 	{
 	  struct compunit_symtab *cust = find_pc_compunit_symtab (pc);
 

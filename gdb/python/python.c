@@ -564,6 +564,7 @@ gdbpy_parameter_value (enum var_types type, void *var)
 PyObject *
 gdbpy_parameter (PyObject *self, PyObject *args)
 {
+  struct gdb_exception except = exception_none;
   struct cmd_list_element *alias, *prefix, *cmd;
   const char *arg;
   char *newarg;
@@ -578,8 +579,9 @@ gdbpy_parameter (PyObject *self, PyObject *args)
     {
       found = lookup_cmd_composition (newarg, &alias, &prefix, &cmd);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 
@@ -717,6 +719,7 @@ gdbpy_solib_name (PyObject *self, PyObject *args)
 static PyObject *
 gdbpy_decode_line (PyObject *self, PyObject *args)
 {
+  struct gdb_exception except = exception_none;
   struct symtabs_and_lines sals = { NULL, 0 }; /* Initialize to
 						  appease gcc.  */
   struct symtab_and_line sal;
@@ -733,6 +736,7 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
   cleanups = make_cleanup (null_cleanup, NULL);
 
   sals.sals = NULL;
+
   TRY
     {
       if (arg)
@@ -749,8 +753,9 @@ gdbpy_decode_line (PyObject *self, PyObject *args)
 	  sals.nelts = 1;
 	}
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

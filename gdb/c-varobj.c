@@ -267,10 +267,7 @@ value_struct_element_index (struct value *value, int type_index)
     }
   END_CATCH
 
-  else
-    {
-      return result;
-    }
+  return result;
 }
 
 /* Obtain the information about child INDEX of the variable

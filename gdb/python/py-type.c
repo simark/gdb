@@ -1067,12 +1067,11 @@ typy_richcompare (PyObject *self, PyObject *other, int op)
 	}
       CATCH (except, RETURN_MASK_ALL)
 	{
+	  /* If there is a GDB exception, a comparison is not capable
+	     (or trusted), so exit.  */
+	  GDB_PY_HANDLE_EXCEPTION (except);
 	}
       END_CATCH
-
-      /* If there is a GDB exception, a comparison is not capable
-	 (or trusted), so exit.  */
-      GDB_PY_HANDLE_EXCEPTION (except);
     }
 
   if (op == (result ? Py_EQ : Py_NE))

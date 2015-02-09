@@ -2099,7 +2099,7 @@ mi_execute_command (const char *cmd, int from_tty)
     }
   END_CATCH
 
-  else
+  if (command != NULL)
     {
       ptid_t previous_ptid = inferior_ptid;
 

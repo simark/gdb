@@ -5943,8 +5943,6 @@ insert_exception_resume_breakpoint (struct thread_info *tp,
 				    struct frame_info *frame,
 				    struct symbol *sym)
 {
-
-  /* We want to ignore errors here.  */
   TRY
     {
       struct symbol *vsym;
@@ -5976,6 +5974,7 @@ insert_exception_resume_breakpoint (struct thread_info *tp,
     }
   CATCH (e, RETURN_MASK_ERROR)
     {
+      /* We want to ignore errors here.  */
     }
   END_CATCH
 }

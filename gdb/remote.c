@@ -11482,11 +11482,10 @@ remote_enable_btrace (struct target_ops *self, ptid_t ptid,
     }
   CATCH (err, RETURN_MASK_ERROR)
     {
+      if (err.message != NULL)
+	warning ("%s", err.message);
     }
   END_CATCH
-
-  if (err.message != NULL)
-    warning ("%s", err.message);
 
   return tinfo;
 }

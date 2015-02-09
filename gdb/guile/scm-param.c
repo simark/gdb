@@ -1066,6 +1066,7 @@ gdbscm_parameter_value (SCM self)
       const char *arg;
       char *newarg;
       int found = -1;
+      struct gdb_exception except = exception_none;
 
       name = gdbscm_scm_to_host_string (self, NULL, &except_scm);
       if (name == NULL)
@@ -1075,8 +1076,9 @@ gdbscm_parameter_value (SCM self)
 	{
 	  found = lookup_cmd_composition (newarg, &alias, &prefix, &cmd);
 	}
-      CATCH (except, RETURN_MASK_ALL)
+      CATCH (ex, RETURN_MASK_ALL)
 	{
+	  except = ex;
 	}
       END_CATCH
 

@@ -135,14 +135,12 @@ frapy_name (PyObject *self, PyObject *args)
 
       find_frame_funname (frame, &name, &lang, NULL);
     }
-
   CATCH (except, RETURN_MASK_ALL)
     {
       xfree (name);
+      GDB_PY_HANDLE_EXCEPTION (except);
     }
   END_CATCH
-
-  GDB_PY_HANDLE_EXCEPTION (except);
 
   if (name)
     {

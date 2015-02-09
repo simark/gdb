@@ -407,6 +407,7 @@ gdbscm_register_breakpoint_x (SCM self)
 {
   breakpoint_smob *bp_smob
     = bpscm_get_breakpoint_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
+  struct gdb_exception except = exception_none;
 
   /* We only support registering breakpoints created with make-breakpoint.  */
   if (!bp_smob->is_scheme_bkpt)
@@ -454,8 +455,9 @@ gdbscm_register_breakpoint_x (SCM self)
 	  gdb_assert_not_reached ("invalid breakpoint type");
 	}
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 
@@ -878,6 +880,7 @@ gdbscm_set_breakpoint_condition_x (SCM self, SCM newvalue)
   breakpoint_smob *bp_smob
     = bpscm_get_valid_breakpoint_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   char *exp;
+  struct gdb_exception except = exception_none;
 
   SCM_ASSERT_TYPE (scm_is_string (newvalue) || gdbscm_is_false (newvalue),
 		   newvalue, SCM_ARG2, FUNC_NAME,
@@ -892,8 +895,9 @@ gdbscm_set_breakpoint_condition_x (SCM self, SCM newvalue)
     {
       set_breakpoint_condition (bp_smob->bp, exp ? exp : "", 0);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

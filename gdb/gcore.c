@@ -114,6 +114,7 @@ write_gcore_file_1 (bfd *obfd)
 void
 write_gcore_file (bfd *obfd)
 {
+  struct gdb_exception except = exception_none;
 
   target_prepare_to_generate_core ();
 
@@ -121,14 +122,16 @@ write_gcore_file (bfd *obfd)
     {
       write_gcore_file_1 (obfd);
     }
+  CATCH (e, RETURN_MASK_ALL)
+    {
+      except = e;
+    }
+  END_CATCH
 
   target_done_generating_core ();
 
-  CATCH (except, RETURN_MASK_ALL)
-    {
-      throw_exception (except);
-    }
-  END_CATCH
+  if (except.reason < 0)
+    throw_exception (except);
 }
 
 static void

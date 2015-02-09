@@ -578,6 +578,7 @@ gdbscm_lookup_symbol (SCM name_scm, SCM rest)
   struct field_of_this_result is_a_field_of_this;
   struct symbol *symbol = NULL;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, keywords, "s#Oi",
 			      name_scm, &name, rest,
@@ -618,8 +619,9 @@ gdbscm_lookup_symbol (SCM name_scm, SCM rest)
     {
       symbol = lookup_symbol (name, block, domain, &is_a_field_of_this);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 
@@ -645,6 +647,7 @@ gdbscm_lookup_global_symbol (SCM name_scm, SCM rest)
   int domain = VAR_DOMAIN;
   struct symbol *symbol = NULL;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, keywords, "s#i",
 			      name_scm, &name, rest,
@@ -656,8 +659,9 @@ gdbscm_lookup_global_symbol (SCM name_scm, SCM rest)
     {
       symbol = lookup_global_symbol (name, NULL, domain);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

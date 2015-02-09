@@ -612,6 +612,7 @@ get_field_type (PyObject *field)
 static PyObject *
 valpy_getitem (PyObject *self, PyObject *key)
 {
+  struct gdb_exception except = exception_none;
   value_object *self_value = (value_object *) self;
   char *field = NULL;
   struct type *base_class_type = NULL, *field_type = NULL;
@@ -743,8 +744,9 @@ valpy_getitem (PyObject *self, PyObject *key)
 	result = value_to_value_object (res_val);
       do_cleanups (cleanup);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 
@@ -1207,6 +1209,7 @@ valpy_absolute (PyObject *self)
 static int
 valpy_nonzero (PyObject *self)
 {
+  struct gdb_exception except = exception_none;
   value_object *self_value = (value_object *) self;
   struct type *type;
   int nonzero = 0; /* Appease GCC warning.  */
@@ -1227,8 +1230,9 @@ valpy_nonzero (PyObject *self)
 	/* All other values are True.  */
 	nonzero = 1;
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

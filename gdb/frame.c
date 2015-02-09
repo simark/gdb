@@ -786,6 +786,7 @@ frame_unwind_pc (struct frame_info *this_frame)
 	{
 	  struct gdbarch *prev_gdbarch;
 	  CORE_ADDR pc = 0;
+	  int pc_p = 0;
 
 	  /* The right way.  The `pure' way.  The one true way.  This
 	     method depends solely on the register-unwind code to
@@ -808,6 +809,7 @@ frame_unwind_pc (struct frame_info *this_frame)
 	  TRY
 	    {
 	      pc = gdbarch_unwind_pc (prev_gdbarch, this_frame);
+	      pc_p = 1;
 	    }
 	  CATCH (ex, RETURN_MASK_ERROR)
 	    {
@@ -836,7 +838,7 @@ frame_unwind_pc (struct frame_info *this_frame)
 	    }
 	  END_CATCH
 
-	  else
+	  if (pc_p)
 	    {
 	      this_frame->prev_pc.value = pc;
 	      this_frame->prev_pc.status = CC_VALUE;

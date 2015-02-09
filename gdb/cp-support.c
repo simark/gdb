@@ -172,16 +172,18 @@ inspect_type (struct demangle_parse_info *info,
     }
 
   sym = NULL;
+
   TRY
-  {
-    sym = lookup_symbol (name, 0, VAR_DOMAIN, 0);
-  }
+    {
+      sym = lookup_symbol (name, 0, VAR_DOMAIN, 0);
+    }
   CATCH (except, RETURN_MASK_ALL)
     {
+      return 0;
     }
   END_CATCH
 
-  if (except.reason >= 0 && sym != NULL)
+  if (sym != NULL)
     {
       struct type *otype = SYMBOL_TYPE (sym);
 
@@ -450,7 +452,7 @@ replace_typedefs (struct demangle_parse_info *info,
 
 	  if (local_name != NULL)
 	    {
-	      struct symbol *sym;
+	      struct symbol *sym = NULL;
 
 	      sym = NULL;
 	      TRY
@@ -464,7 +466,7 @@ replace_typedefs (struct demangle_parse_info *info,
 
 	      xfree (local_name);
 
-	      if (except.reason >= 0 && sym != NULL)
+	      if (sym != NULL)
 		{
 		  struct type *otype = SYMBOL_TYPE (sym);
 		  const char *new_name = (*finder) (otype, data);

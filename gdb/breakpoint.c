@@ -2425,17 +2425,16 @@ parse_cmd_to_aexpr (CORE_ADDR scope, char *cmd)
 			  format_start, format_end - format_start,
 			  fpieces, nargs, argvec);
     }
-
-  do_cleanups (old_cleanups);
-
   CATCH (ex, RETURN_MASK_ERROR)
     {
       /* If we got here, it means the command could not be parsed to a valid
 	 bytecode expression and thus can't be evaluated on the target's side.
 	 It's no use iterating through the other commands.  */
-      return NULL;
+      aexpr = NULL;
     }
   END_CATCH
+
+  do_cleanups (old_cleanups);
 
   /* We have a valid agent expression, return it.  */
   return aexpr;
@@ -9992,23 +9991,12 @@ create_breakpoint (struct gdbarch *gdbarch,
       ops->create_sals_from_address (&arg, &canonical, type_wanted,
 				     addr_start, &copy_arg);
     }
-  CATCH (e, RETURN_MASK_ALL)
+  CATCH (e, RETURN_MASK_ERROR)
     {
-    }
-  END_CATCH
-
-  /* If caller is interested in rc value from parse, set value.  */
-  switch (e.reason)
-    {
-    case GDB_NO_ERROR:
-      if (VEC_empty (linespec_sals, canonical.sals))
-	return 0;
-      break;
-    case RETURN_ERROR:
-      switch (e.error)
+      /* If caller is interested in rc value from parse, set
+	 value.  */
+      if (e.error == NOT_FOUND_ERROR)
 	{
-	case NOT_FOUND_ERROR:
-
 	  /* If pending breakpoint support is turned off, throw
 	     error.  */
 
@@ -10039,14 +10027,14 @@ create_breakpoint (struct gdbarch *gdbarch,
 	    pending = 1;
 	    VEC_safe_push (linespec_sals, canonical.sals, &lsal);
 	  }
-	  break;
-	default:
-	  throw_exception (e);
 	}
-      break;
-    default:
-      throw_exception (e);
+      else
+	throw_exception (e);
     }
+  END_CATCH
+
+  if (VEC_empty (linespec_sals, canonical.sals))
+    return 0;
 
   /* Create a chain of things that always need to be cleaned up.  */
   old_chain = make_cleanup_destroy_linespec_result (&canonical);
@@ -14543,6 +14531,7 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
 {
   char *s;
   struct symtabs_and_lines sals = {0};
+  struct gdb_exception exception = exception_none;
 
   gdb_assert (b->ops != NULL);
   s = addr_string;
@@ -14554,6 +14543,9 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
   CATCH (e, RETURN_MASK_ERROR)
     {
       int not_found_and_ok = 0;
+
+      exception = e;
+
       /* For pending breakpoints, it's expected that parsing will
 	 fail until the right shared library is loaded.  User has
 	 already told to create pending breakpoints and don't need
@@ -14582,7 +14574,7 @@ addr_string_to_sals (struct breakpoint *b, char *addr_string, int *found)
     }
   END_CATCH
 
-  if (e.reason == 0 || e.error != NOT_FOUND_ERROR)
+  if (exception.reason == 0 || exception.error != NOT_FOUND_ERROR)
     {
       int i;
 

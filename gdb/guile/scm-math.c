@@ -447,6 +447,7 @@ vlscm_rich_compare (int op, SCM x, SCM y, const char *func_name)
   int result = 0;
   SCM except_scm;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   cleanups = make_cleanup_value_free_to_mark (value_mark ());
 
@@ -492,8 +493,9 @@ vlscm_rich_compare (int op, SCM x, SCM y, const char *func_name)
 	  gdb_assert_not_reached ("invalid <gdb:value> comparison");
       }
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      except = ex;
     }
   END_CATCH
 

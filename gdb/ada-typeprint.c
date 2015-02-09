@@ -160,6 +160,7 @@ print_range (struct type *type, struct ui_file *stream,
       {
 	struct type *target_type;
 	LONGEST lo = 0, hi = 0; /* init for gcc -Wall */
+	int got_error = 0;
 
 	target_type = TYPE_TARGET_TYPE (type);
 	if (target_type == NULL)
@@ -178,10 +179,11 @@ print_range (struct type *type, struct ui_file *stream,
 	       when the user is using the "ptype" command on a type.
 	       Print the range as an unbounded range.  */
 	    fprintf_filtered (stream, "<>");
+	    got_error = 1;
 	  }
 	END_CATCH
 
-	else
+	if (!got_error)
 	  {
 	    ada_print_scalar (target_type, lo, stream);
 	    fprintf_filtered (stream, " .. ");

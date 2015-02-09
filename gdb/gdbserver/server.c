@@ -3433,17 +3433,13 @@ captured_main (int argc, char *argv[])
 	}
       CATCH (exception, RETURN_MASK_ERROR)
 	{
-	}
-      END_CATCH
-
-      if (exception.reason == RETURN_ERROR)
-	{
 	  if (response_needed)
 	    {
 	      write_enn (own_buf);
 	      putpkt (own_buf);
 	    }
 	}
+      END_CATCH
     }
 }
 
@@ -3459,21 +3455,19 @@ main (int argc, char *argv[])
     }
   CATCH (exception, RETURN_MASK_ALL)
     {
+      if (exception.reason == RETURN_ERROR)
+	{
+	  fflush (stdout);
+	  fprintf (stderr, "%s\n", exception.message);
+	  fprintf (stderr, "Exiting\n");
+	  exit_code = 1;
+	}
+
+      exit (exit_code);
     }
   END_CATCH
 
-  /* captured_main should never return.  */
-  gdb_assert (exception.reason < 0);
-
-  if (exception.reason == RETURN_ERROR)
-    {
-      fflush (stdout);
-      fprintf (stderr, "%s\n", exception.message);
-      fprintf (stderr, "Exiting\n");
-      exit_code = 1;
-    }
-
-  exit (exit_code);
+  gdb_assert_not_reached ("captured_main should never return");
 }
 
 /* Skip PACKET until the next semi-colon (or end of string).  */

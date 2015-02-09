@@ -426,6 +426,7 @@ gdbscm_frame_name (SCM self)
   enum language lang = language_minimal;
   struct frame_info *frame = NULL;
   SCM result;
+  struct gdb_exception except = exception_none;
 
   f_smob = frscm_get_frame_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
 
@@ -435,12 +436,13 @@ gdbscm_frame_name (SCM self)
       if (frame != NULL)
 	find_frame_funname (frame, &name, &lang, NULL);
     }
-  CATCH (except, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
-      xfree (name);
+      except = ex;
     }
   END_CATCH
 
+  xfree (name);
   GDBSCM_HANDLE_GDB_EXCEPTION (except);
 
   if (frame == NULL)
@@ -835,6 +837,7 @@ gdbscm_frame_read_var (SCM self, SCM symbol_scm, SCM rest)
       char *var_name;
       const struct block *block = NULL;
       struct cleanup *cleanup;
+      struct gdb_exception except = exception_none;
 
       if (! SCM_UNBNDP (block_scm))
 	{
@@ -858,12 +861,13 @@ gdbscm_frame_read_var (SCM self, SCM symbol_scm, SCM rest)
 	    block = get_frame_block (frame, NULL);
 	  var = lookup_symbol (var_name, block, VAR_DOMAIN, NULL);
 	}
-      CATCH (except, RETURN_MASK_ALL)
+      CATCH (ex, RETURN_MASK_ALL)
 	{
-	  do_cleanups (cleanup);
+	  except = ex;
 	}
       END_CATCH
 
+      do_cleanups (cleanup);
       GDBSCM_HANDLE_GDB_EXCEPTION (except);
 
       if (var == NULL)

@@ -392,7 +392,6 @@ varobj_create (char *objname,
 	{
 	  value = evaluate_expression (var->root->exp);
 	}
-
       CATCH (except, RETURN_MASK_ERROR)
 	{
 	  /* Error getting the value.  Try to at least get the
@@ -403,14 +402,14 @@ varobj_create (char *objname,
 	}
       END_CATCH
 
-	else
-	  {
-	    int real_type_found = 0;
+      if (value != NULL)
+	{
+	  int real_type_found = 0;
 
-	    var->type = value_actual_type (value, 0, &real_type_found);
-	    if (real_type_found)
-	      value = value_cast (var->type, value);
-	  }
+	  var->type = value_actual_type (value, 0, &real_type_found);
+	  if (real_type_found)
+	    value = value_cast (var->type, value);
+	}
 
       /* Set language info */
       var->root->lang_ops = var->root->exp->language_defn->la_varobj_ops;

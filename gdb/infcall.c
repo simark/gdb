@@ -383,6 +383,7 @@ get_function_name (CORE_ADDR funaddr, char *buf, int buf_size)
 static struct gdb_exception
 run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 {
+  struct gdb_exception caught_error = exception_none;
   int saved_in_infcall = call_thread->control.in_infcall;
   ptid_t call_thread_ptid = call_thread->ptid;
   int saved_sync_execution = sync_execution;
@@ -422,6 +423,11 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 	    async_disable_stdin ();
 	}
     }
+  CATCH (e, RETURN_MASK_ALL)
+    {
+      caught_error = e;
+    }
+  END_CATCH
 
   /* At this point the current thread may have changed.  Refresh
      CALL_THREAD as it could be invalid if its thread has exited.  */
@@ -434,19 +440,18 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
      If all error()s out of proceed ended up calling normal_stop
      (and perhaps they should; it already does in the special case
      of error out of resume()), then we wouldn't need this.  */
-  CATCH (e, RETURN_MASK_ALL)
+  if (caught_error.reason < 0)
     {
       if (call_thread != NULL)
 	breakpoint_auto_delete (call_thread->control.stop_bpstat);
     }
-  END_CATCH
 
   if (call_thread != NULL)
     call_thread->control.in_infcall = saved_in_infcall;
 
   sync_execution = saved_sync_execution;
 
-  return e;
+  return caught_error;
 }
 
 /* A cleanup function that calls delete_std_terminate_breakpoint.  */

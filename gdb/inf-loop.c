@@ -123,10 +123,9 @@ inferior_event_handler (enum inferior_event_type event_type,
 	    }
 	  CATCH (e, RETURN_MASK_ALL)
 	    {
+	      exception_print (gdb_stderr, e);
 	    }
 	  END_CATCH
-
-	  exception_print (gdb_stderr, e);
 	}
       break;
 

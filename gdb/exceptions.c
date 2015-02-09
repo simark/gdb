@@ -228,6 +228,7 @@ int
 catch_errors (catch_errors_ftype *func, void *func_args, char *errstring,
 	      return_mask mask)
 {
+  struct gdb_exception exception = exception_none;
   volatile int val = 0;
   struct ui_out *saved_uiout;
 
@@ -238,8 +239,9 @@ catch_errors (catch_errors_ftype *func, void *func_args, char *errstring,
     {
       val = func (func_args);
     }
-  CATCH (exception, RETURN_MASK_ALL)
+  CATCH (ex, RETURN_MASK_ALL)
     {
+      exception = ex;
     }
   END_CATCH
 

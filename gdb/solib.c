@@ -637,8 +637,9 @@ solib_read_symbols (struct so_list *so, int flags)
 						  NULL);
 	  so->objfile->addr_low = so->addr_low;
 	  free_section_addr_info (sap);
-	}
 
+	  so->symbols_loaded = 1;
+	}
       CATCH (e, RETURN_MASK_ERROR)
 	{
 	  exception_fprintf (gdb_stderr, e, _("Error while reading shared"
@@ -647,8 +648,6 @@ solib_read_symbols (struct so_list *so, int flags)
 	}
       END_CATCH
 
-      else
-	so->symbols_loaded = 1;
       return 1;
     }
 
@@ -1325,6 +1324,7 @@ reload_shared_libraries_1 (int from_tty)
 	  && (!was_loaded
 	      || filename_cmp (found_pathname, so->so_name) != 0))
 	{
+	  int got_error = 0;
 
 	  TRY
 	    {
@@ -1336,11 +1336,13 @@ reload_shared_libraries_1 (int from_tty)
 	      exception_fprintf (gdb_stderr, e,
 				 _("Error while mapping "
 				   "shared library sections:\n"));
+	      got_error = 1;
 	    }
 	  END_CATCH
 
-	  else if (auto_solib_add || was_loaded || libpthread_solib_p (so))
-	    solib_read_symbols (so, flags);
+	    if (!got_error
+		&& (auto_solib_add || was_loaded || libpthread_solib_p (so)))
+	      solib_read_symbols (so, flags);
 	}
     }
 

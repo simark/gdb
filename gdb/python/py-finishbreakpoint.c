@@ -218,7 +218,7 @@ bpfinishpy_init (PyObject *self, PyObject *args, PyObject *kwargs)
     }
   END_CATCH
 
-  else if (PyErr_Occurred ())
+  if (PyErr_Occurred ())
     return -1;
 
   thread = pid_to_thread_id (inferior_ptid);
