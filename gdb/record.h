@@ -47,6 +47,27 @@ enum record_print_flag
   RECORD_PRINT_INDENT_CALLS = (1 << 2)
 };
 
+/* Reasons the record target stopped execution.  */
+enum record_stop_reason
+{
+  /* Stopped for no reason (that we need to track).  */
+  RECORD_STOPPED_BY_NO_REASON,
+
+  /* Stopped for a hardware watchpoint.  */
+  RECORD_STOPPED_BY_WATCHPOINT,
+
+  /* Stopped for a software breakpoint.  */
+  RECORD_STOPPED_BY_SW_BREAKPOINT,
+
+  /* Stopped for a hardware breakpoint.  */
+  RECORD_STOPPED_BY_HW_BREAKPOINT,
+};
+
+extern int
+  record_check_stopped_by_breakpoint (struct address_space *aspace,
+				      CORE_ADDR pc,
+				      enum record_stop_reason *reason);
+
 /* Wrapper for target_read_memory that prints a debug message if
    reading memory fails.  */
 extern int record_read_memory (struct gdbarch *gdbarch,

@@ -85,6 +85,8 @@ extern int disable_packet_qfThreadInfo;
 extern int run_once;
 extern int multi_process;
 extern int non_stop;
+extern int gdb_supports_swbreak;
+extern int gdb_supports_hwbreak;
 
 extern int disable_randomization;
 

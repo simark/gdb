@@ -367,6 +367,14 @@ struct remote_state
   /* This is non-zero if target stopped for a watchpoint.  */
   int remote_stopped_by_watchpoint_p;
 
+  /* This is 1 if the target stopped for a software breakpoint, 0
+     otherwise.  */
+  int remote_stopped_by_sw_breakpoint_p;
+
+  /* This is 1 if the target stopped for a hardware breakpoint, 0
+     otherwise.  */
+  int remote_stopped_by_hw_breakpoint_p;
+
   threadref echo_nextthread;
   threadref nextthread;
   threadref resultthreadlist[MAXTHREADLISTRESULTS];
@@ -1337,6 +1345,12 @@ enum {
 
   /* Support for the Qbtrace-conf:bts:size packet.  */
   PACKET_Qbtrace_conf_bts_size,
+
+  /* Support for swbreak+ feature.  */
+  PACKET_swbreak_feature,
+
+  /* Support for hwbreak+ feature.  */
+  PACKET_hwbreak_feature,
 
   PACKET_MAX
 };
@@ -4025,7 +4039,9 @@ static const struct protocol_feature remote_protocol_features[] = {
   { "qXfer:btrace-conf:read", PACKET_DISABLE, remote_supported_packet,
     PACKET_qXfer_btrace_conf },
   { "Qbtrace-conf:bts:size", PACKET_DISABLE, remote_supported_packet,
-    PACKET_Qbtrace_conf_bts_size }
+    PACKET_Qbtrace_conf_bts_size },
+  { "swbreak", PACKET_DISABLE, remote_supported_packet, PACKET_swbreak_feature },
+  { "hwbreak", PACKET_DISABLE, remote_supported_packet, PACKET_hwbreak_feature }
 };
 
 static char *remote_support_xml;
@@ -4093,6 +4109,9 @@ remote_query_supported (void)
       struct cleanup *old_chain = make_cleanup (free_current_contents, &q);
 
       q = remote_query_supported_append (q, "multiprocess+");
+
+      q = remote_query_supported_append (q, "swbreak+");
+      q = remote_query_supported_append (q, "hwbreak+");
 
       if (remote_support_xml)
 	q = remote_query_supported_append (q, remote_support_xml);
@@ -5202,6 +5221,9 @@ typedef struct stop_reply
      fetch them is avoided).  */
   VEC(cached_reg_t) *regcache;
 
+  int stopped_by_sw_breakpoint_p;
+  int stopped_by_hw_breakpoint_p;
+
   int stopped_by_watchpoint_p;
   CORE_ADDR watch_data_address;
 
@@ -5513,6 +5535,8 @@ remote_parse_stop_reply (char *buf, struct stop_reply *event)
   event->rs = get_remote_state ();
   event->ws.kind = TARGET_WAITKIND_IGNORE;
   event->ws.value.integer = 0;
+  event->stopped_by_sw_breakpoint_p = 0;
+  event->stopped_by_hw_breakpoint_p = 0;
   event->stopped_by_watchpoint_p = 0;
   event->regcache = NULL;
   event->core = -1;
@@ -5559,6 +5583,18 @@ Packet: '%s'\n"),
 	      event->stopped_by_watchpoint_p = 1;
 	      p = unpack_varlen_hex (++p1, &addr);
 	      event->watch_data_address = (CORE_ADDR) addr;
+	    }
+	  else if (strncmp (p, "swbreak", p1 - p) == 0)
+	    {
+	      event->stopped_by_sw_breakpoint_p = 1;
+
+	      p = skip_to_semicolon (p1 + 1);
+	    }
+	  else if (strncmp (p, "hwbreak", p1 - p) == 0)
+	    {
+	      event->stopped_by_hw_breakpoint_p = 1;
+
+	      p = skip_to_semicolon (p1 + 1);
 	    }
 	  else if (strncmp (p, "library", p1 - p) == 0)
 	    {
@@ -5817,6 +5853,11 @@ process_stop_reply (struct stop_reply *stop_reply,
 	  VEC_free (cached_reg_t, stop_reply->regcache);
 	}
 
+      rs->remote_stopped_by_sw_breakpoint_p
+	= stop_reply->stopped_by_sw_breakpoint_p;
+      rs->remote_stopped_by_hw_breakpoint_p
+	= stop_reply->stopped_by_hw_breakpoint_p;
+
       rs->remote_stopped_by_watchpoint_p = stop_reply->stopped_by_watchpoint_p;
       rs->remote_watch_data_address = stop_reply->watch_data_address;
 
@@ -5945,6 +5986,8 @@ remote_wait_as (ptid_t ptid, struct target_waitstatus *status, int options)
   buf = rs->buf;
 
   rs->remote_stopped_by_watchpoint_p = 0;
+  rs->remote_stopped_by_sw_breakpoint_p = 0;
+  rs->remote_stopped_by_hw_breakpoint_p = 0;
 
   /* We got something.  */
   rs->waiting_for_stop_reply = 0;
@@ -8416,6 +8459,44 @@ remote_check_watch_resources (struct target_ops *self,
 	return 1;
     }
   return -1;
+}
+
+static int
+remote_stopped_by_sw_breakpoint (struct target_ops *ops)
+{
+  struct remote_state *rs = get_remote_state ();
+
+  if (packet_support (PACKET_swbreak_feature) == PACKET_ENABLE)
+    return rs->remote_stopped_by_sw_breakpoint_p;
+
+  return -1;
+}
+
+static int
+remote_supports_stopped_by_sw_breakpoint (struct target_ops *ops)
+{
+  struct remote_state *rs = get_remote_state ();
+
+  return (packet_support (PACKET_swbreak_feature) == PACKET_ENABLE);
+}
+
+static int
+remote_stopped_by_hw_breakpoint (struct target_ops *ops)
+{
+  struct remote_state *rs = get_remote_state ();
+
+  if (packet_support (PACKET_hwbreak_feature) == PACKET_ENABLE)
+    return rs->remote_stopped_by_hw_breakpoint_p;
+
+  return -1;
+}
+
+static int
+remote_supports_stopped_by_hw_breakpoint (struct target_ops *ops)
+{
+  struct remote_state *rs = get_remote_state ();
+
+  return (packet_support (PACKET_hwbreak_feature) == PACKET_ENABLE);
 }
 
 static int
@@ -11614,6 +11695,10 @@ Specify the serial device it is connected to\n\
   remote_ops.to_files_info = remote_files_info;
   remote_ops.to_insert_breakpoint = remote_insert_breakpoint;
   remote_ops.to_remove_breakpoint = remote_remove_breakpoint;
+  remote_ops.to_stopped_by_sw_breakpoint = remote_stopped_by_sw_breakpoint;
+  remote_ops.to_supports_stopped_by_sw_breakpoint = remote_supports_stopped_by_sw_breakpoint;
+  remote_ops.to_stopped_by_hw_breakpoint = remote_stopped_by_hw_breakpoint;
+  remote_ops.to_supports_stopped_by_hw_breakpoint = remote_supports_stopped_by_hw_breakpoint;
   remote_ops.to_stopped_by_watchpoint = remote_stopped_by_watchpoint;
   remote_ops.to_stopped_data_address = remote_stopped_data_address;
   remote_ops.to_watchpoint_addr_within_range =
@@ -12318,6 +12403,12 @@ Show the maximum size of the address (in bits) in a memory packet."), NULL,
 
   add_packet_config_cmd (&remote_protocol_packets[PACKET_Qbtrace_conf_bts_size],
        "Qbtrace-conf:bts:size", "btrace-conf-bts-size", 0);
+
+  add_packet_config_cmd (&remote_protocol_packets[PACKET_swbreak_feature],
+                         "swbreak-feature", "swbreak-feature", 0);
+
+  add_packet_config_cmd (&remote_protocol_packets[PACKET_hwbreak_feature],
+                         "hwbreak-feature", "hwbreak-feature", 0);
 
   /* Assert that we've registered commands for all packet configs.  */
   {

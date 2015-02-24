@@ -1117,6 +1117,8 @@ enum breakpoint_here
 
 /* Prototypes for breakpoint-related functions.  */
 
+extern int program_breakpoint_here (struct gdbarch *gdbarch, CORE_ADDR address);
+
 extern enum breakpoint_here breakpoint_here_p (struct address_space *, 
 					       CORE_ADDR);
 

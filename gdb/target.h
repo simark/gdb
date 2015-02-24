@@ -452,6 +452,21 @@ struct target_ops
     int (*to_remove_breakpoint) (struct target_ops *, struct gdbarch *,
 				 struct bp_target_info *)
       TARGET_DEFAULT_FUNC (memory_remove_breakpoint);
+
+    /* Returns true if the target stopped because it executed a
+       software breakpoint.  This is necessary for correct PC
+       adjustment on targets where the PC needs to be adjusted when a
+       software breakpoint triggers.  See adjust_pc_after_break.  */
+    int (*to_stopped_by_sw_breakpoint) (struct target_ops *)
+      TARGET_DEFAULT_RETURN (-1);
+    int (*to_supports_stopped_by_sw_breakpoint) (struct target_ops *)
+      TARGET_DEFAULT_RETURN (0);
+
+    int (*to_stopped_by_hw_breakpoint) (struct target_ops *)
+      TARGET_DEFAULT_RETURN (-1);
+    int (*to_supports_stopped_by_hw_breakpoint) (struct target_ops *)
+      TARGET_DEFAULT_RETURN (0);
+
     int (*to_can_use_hw_breakpoint) (struct target_ops *, int, int, int)
       TARGET_DEFAULT_RETURN (0);
     int (*to_ranged_break_num_registers) (struct target_ops *)
@@ -1126,13 +1141,6 @@ struct target_ops
     const struct frame_unwind *(*to_get_tailcall_unwinder) (struct target_ops *self)
       TARGET_DEFAULT_RETURN (NULL);
 
-    /* Return the number of bytes by which the PC needs to be decremented
-       after executing a breakpoint instruction.
-       Defaults to gdbarch_decr_pc_after_break (GDBARCH).  */
-    CORE_ADDR (*to_decr_pc_after_break) (struct target_ops *ops,
-					 struct gdbarch *gdbarch)
-      TARGET_DEFAULT_FUNC (default_target_decr_pc_after_break);
-
     /* Prepare to generate a core file.  */
     void (*to_prepare_to_generate_core) (struct target_ops *)
       TARGET_DEFAULT_IGNORE ();
@@ -1741,6 +1749,21 @@ extern char *target_thread_name (struct thread_info *);
 #define target_stopped_by_watchpoint()		\
   ((*current_target.to_stopped_by_watchpoint) (&current_target))
 
+/* Returns non-zero if the target stopped because it executed a
+   software breakpoint instruction.  */
+
+#define target_stopped_by_sw_breakpoint()		\
+  ((*current_target.to_stopped_by_sw_breakpoint) (&current_target))
+
+#define target_supports_stopped_by_sw_breakpoint() \
+  ((*current_target.to_supports_stopped_by_sw_breakpoint) (&current_target))
+
+#define target_stopped_by_hw_breakpoint()				\
+  ((*current_target.to_stopped_by_hw_breakpoint) (&current_target))
+
+#define target_supports_stopped_by_hw_breakpoint() \
+  ((*current_target.to_supports_stopped_by_hw_breakpoint) (&current_target))
+
 /* Non-zero if we have steppable watchpoints  */
 
 #define target_have_steppable_watchpoint \
@@ -2286,9 +2309,6 @@ extern void target_call_history_from (ULONGEST begin, int size, int flags);
 
 /* See to_call_history_range.  */
 extern void target_call_history_range (ULONGEST begin, ULONGEST end, int flags);
-
-/* See to_decr_pc_after_break.  */
-extern CORE_ADDR target_decr_pc_after_break (struct gdbarch *gdbarch);
 
 /* See to_prepare_to_generate_core.  */
 extern void target_prepare_to_generate_core (void);

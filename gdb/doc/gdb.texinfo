@@ -35190,6 +35190,15 @@ will be either @samp{begin} or @samp{end}.  @xref{Reverse Execution},
 for more information.
 @end table
 
+@item swbreak
+The packet indicates a software breakpoint instruction was executed.
+The target is responsible for adjusting the PC to point at the
+breakpoint address if necessary.
+
+@item hwbreak
+The packet indicates the target stopped for a hardware breakpoint.
+The target's PC points at the breakpoint address.
+
 @item W @var{AA}
 @itemx W @var{AA} ; process:@var{pid}
 The process exited, and @var{AA} is the exit status.  This is only

@@ -88,6 +88,10 @@ struct buffer;
 #define __WALL          0x40000000 /* Wait for any child.  */
 #endif
 
+#ifndef TRAP_HWBKPT
+#define TRAP_HWBKPT 4
+#endif
+
 extern void linux_ptrace_attach_fail_reason (pid_t pid, struct buffer *buffer);
 
 /* Find all possible reasons we could have failed to attach to PTID

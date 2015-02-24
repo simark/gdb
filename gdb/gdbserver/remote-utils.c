@@ -1130,6 +1130,22 @@ prepare_resume_reply (char *buf, ptid_t ptid,
 
 	regcache = get_thread_regcache (current_thread, 1);
 
+	if (gdb_supports_swbreak
+	    && the_target->stopped_by_sw_breakpoint != NULL
+	    && (*the_target->stopped_by_sw_breakpoint) ())
+	  {
+	    sprintf (buf, "swbreak:;");
+	    buf += strlen (buf);
+	  }
+
+	if (gdb_supports_hwbreak
+	    && the_target->stopped_by_hw_breakpoint != NULL
+	    && (*the_target->stopped_by_hw_breakpoint) ())
+	  {
+	    sprintf (buf, "hwbreak:;");
+	    buf += strlen (buf);
+	  }
+
 	if (the_target->stopped_by_watchpoint != NULL
 	    && (*the_target->stopped_by_watchpoint) ())
 	  {
