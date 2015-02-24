@@ -1527,7 +1527,7 @@ linux_resume_one_lwp (struct lwp_info *lp, int step, enum gdb_signal signo)
   /* Convert to something the lower layer understands.  */
   ptid = pid_to_ptid (ptid_get_lwp (lp->ptid));
   linux_ops->to_resume (linux_ops, ptid, step, signo);
-  lp->stop_reason = LWP_STOPPED_BY_NO_REASON;
+  lp->stop_reason = TARGET_STOPPED_BY_NO_REASON;
   lp->stopped = 0;
   registers_changed_ptid (lp->ptid);
 }
@@ -2380,7 +2380,7 @@ check_stopped_by_watchpoint (struct lwp_info *lp)
 
   if (linux_ops->to_stopped_by_watchpoint (linux_ops))
     {
-      lp->stop_reason = LWP_STOPPED_BY_WATCHPOINT;
+      lp->stop_reason = TARGET_STOPPED_BY_WATCHPOINT;
 
       if (linux_ops->to_stopped_data_address != NULL)
 	lp->stopped_data_address_p =
@@ -2392,7 +2392,7 @@ check_stopped_by_watchpoint (struct lwp_info *lp)
 
   do_cleanups (old_chain);
 
-  return lp->stop_reason == LWP_STOPPED_BY_WATCHPOINT;
+  return lp->stop_reason == TARGET_STOPPED_BY_WATCHPOINT;
 }
 
 /* Called when the LWP stopped for a trap that could be explained by a
@@ -2401,7 +2401,7 @@ check_stopped_by_watchpoint (struct lwp_info *lp)
 static void
 save_sigtrap (struct lwp_info *lp)
 {
-  gdb_assert (lp->stop_reason == LWP_STOPPED_BY_NO_REASON);
+  gdb_assert (lp->stop_reason == TARGET_STOPPED_BY_NO_REASON);
   gdb_assert (lp->status != 0);
 
   if (check_stopped_by_watchpoint (lp))
@@ -2420,7 +2420,7 @@ linux_nat_stopped_by_watchpoint (struct target_ops *ops)
 
   gdb_assert (lp != NULL);
 
-  return lp->stop_reason == LWP_STOPPED_BY_WATCHPOINT;
+  return lp->stop_reason == TARGET_STOPPED_BY_WATCHPOINT;
 }
 
 static int
@@ -2540,8 +2540,8 @@ status_callback (struct lwp_info *lp, void *data)
   if (!lp->resumed)
     return 0;
 
-  if (lp->stop_reason == LWP_STOPPED_BY_SW_BREAKPOINT
-      || lp->stop_reason == LWP_STOPPED_BY_HW_BREAKPOINT)
+  if (lp->stop_reason == TARGET_STOPPED_BY_SW_BREAKPOINT
+      || lp->stop_reason == TARGET_STOPPED_BY_HW_BREAKPOINT)
     {
       struct regcache *regcache = get_thread_regcache (lp->ptid);
       struct gdbarch *gdbarch = get_regcache_arch (regcache);
@@ -2694,7 +2694,7 @@ check_stopped_by_breakpoint (struct lwp_info *lp)
 	regcache_write_pc (regcache, sw_bp_pc);
 
       lp->stop_pc = sw_bp_pc;
-      lp->stop_reason = LWP_STOPPED_BY_SW_BREAKPOINT;
+      lp->stop_reason = TARGET_STOPPED_BY_SW_BREAKPOINT;
       return 1;
     }
 
@@ -2706,7 +2706,7 @@ check_stopped_by_breakpoint (struct lwp_info *lp)
 			    target_pid_to_str (lp->ptid));
 
       lp->stop_pc = pc;
-      lp->stop_reason = LWP_STOPPED_BY_HW_BREAKPOINT;
+      lp->stop_reason = TARGET_STOPPED_BY_HW_BREAKPOINT;
       return 1;
     }
 
@@ -3366,7 +3366,7 @@ linux_nat_wait_1 (struct target_ops *ops,
 
   /* Now that we've selected our final event LWP, un-adjust its PC if
      it was a software breakpoint.  */
-  if (lp->stop_reason == LWP_STOPPED_BY_SW_BREAKPOINT)
+  if (lp->stop_reason == TARGET_STOPPED_BY_SW_BREAKPOINT)
     {
       struct regcache *regcache = get_thread_regcache (lp->ptid);
       struct gdbarch *gdbarch = get_regcache_arch (regcache);
