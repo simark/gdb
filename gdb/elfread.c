@@ -1147,7 +1147,7 @@ elf_read_minimal_symbols (struct objfile *objfile, int symfile_flags,
       /* Memory gets permanently referenced from ABFD after
 	 bfd_canonicalize_symtab so it must not get freed before ABFD gets.  */
 
-      symbol_table = bfd_alloc (abfd, storage_needed);
+      symbol_table = (asymbol **) bfd_alloc (abfd, storage_needed);
       symcount = bfd_canonicalize_symtab (objfile->obfd, symbol_table);
 
       if (symcount < 0)
