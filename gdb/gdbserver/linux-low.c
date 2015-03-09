@@ -6135,7 +6135,7 @@ linux_low_disable_btrace (struct btrace_target_info *tinfo)
 
 static int
 linux_low_read_btrace (struct btrace_target_info *tinfo, struct buffer *buffer,
-		       int type)
+		       enum btrace_read_type type)
 {
   struct btrace_data btrace;
   struct btrace_block *block;
