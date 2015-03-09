@@ -295,6 +295,7 @@ convert_qualified (struct compile_c_instance *context, struct type *type)
   struct type *unqual = make_unqualified_type (type);
   gcc_type unqual_converted;
   int quals = 0;
+  enum gcc_qualifiers gcc_quals;
 
   unqual_converted = convert_type (context, unqual);
 
@@ -305,9 +306,10 @@ convert_qualified (struct compile_c_instance *context, struct type *type)
   if (TYPE_RESTRICT (type))
     quals |= GCC_QUALIFIER_RESTRICT;
 
+  gcc_quals = (enum gcc_qualifiers) quals;
   return C_CTX (context)->c_ops->build_qualified_type (C_CTX (context),
 						       unqual_converted,
-						       quals);
+						       gcc_quals);
 }
 
 /* Convert a complex type to its gcc representation.  */
