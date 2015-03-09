@@ -2451,10 +2451,18 @@ clear_installed_tracepoints (void)
       switch (tpoint->type)
 	{
 	case trap_tracepoint:
-	  delete_breakpoint (tpoint->handle);
+	  {
+	    struct breakpoint *bp
+	      = (struct breakpoint *) tpoint->handle;
+	    delete_breakpoint (bp);
+	  }
 	  break;
 	case fast_tracepoint:
-	  delete_fast_tracepoint_jump (tpoint->handle);
+	  {
+	    struct fast_tracepoint_jump *jump
+	      = (struct fast_tracepoint_jump *) tpoint->handle;
+	    delete_fast_tracepoint_jump (jump);
+	  }
 	  break;
 	case static_tracepoint:
 	  if (prev_stpoint != NULL
@@ -3116,8 +3124,8 @@ install_fast_tracepoint (struct tracepoint *tpoint, char *errbuf)
     return 1;
 
   /* Wire it in.  */
-  tpoint->handle = set_fast_tracepoint_jump (tpoint->address, fjump,
-					     fjump_size);
+  tpoint->handle = (void *) set_fast_tracepoint_jump (tpoint->address, fjump,
+						      fjump_size);
 
   if (tpoint->handle != NULL)
     {
@@ -3149,8 +3157,8 @@ install_tracepoint (struct tracepoint *tpoint, char *own_buf)
 	 ahead and install the trap.  The breakpoints module
 	 handles duplicated breakpoints, and the memory read
 	 routine handles un-patching traps from memory reads.  */
-      tpoint->handle = set_breakpoint_at (tpoint->address,
-					  tracepoint_handler);
+      tpoint->handle = (void *) set_breakpoint_at (tpoint->address,
+						   tracepoint_handler);
     }
   else if (tpoint->type == fast_tracepoint || tpoint->type == static_tracepoint)
     {
@@ -3243,8 +3251,8 @@ cmd_qtstart (char *packet)
 	     ahead and install the trap.  The breakpoints module
 	     handles duplicated breakpoints, and the memory read
 	     routine handles un-patching traps from memory reads.  */
-	  tpoint->handle = set_breakpoint_at (tpoint->address,
-					      tracepoint_handler);
+	  tpoint->handle = (void *) set_breakpoint_at (tpoint->address,
+						       tracepoint_handler);
 	}
       else if (tpoint->type == fast_tracepoint
 	       || tpoint->type == static_tracepoint)
