@@ -3215,6 +3215,17 @@ reinstall_readline_callback_handler_cleanup (void *arg)
     gdb_rl_callback_handler_reinstall ();
 }
 
+/* A cleanup that restores the execution direction to the value saved
+   where the cleanup's argument points at.  */
+
+static void
+restore_execution_direction (void *arg)
+{
+  enum exec_direction_kind *save_exec_dir = (enum exec_direction_kind *) arg;
+
+  execution_direction = *save_exec_dir;
+}
+
 /* Asynchronous version of wait_for_inferior.  It is called by the
    event loop whenever a change of state is detected on the file
    descriptor corresponding to the target.  It can be called more than
@@ -3232,6 +3243,7 @@ fetch_inferior_event (void *client_data)
   struct cleanup *old_chain = make_cleanup (null_cleanup, NULL);
   struct cleanup *ts_old_chain;
   int was_sync = sync_execution;
+  enum exec_direction_kind save_exec_dir = execution_direction;
   int cmd_done = 0;
   ptid_t waiton_ptid = minus_one_ptid;
 
@@ -3264,7 +3276,7 @@ fetch_inferior_event (void *client_data)
      event.  */
   target_dcache_invalidate ();
 
-  make_cleanup_restore_integer (&execution_direction);
+  make_cleanup (restore_execution_direction, &save_exec_dir);
   execution_direction = target_execution_direction ();
 
   if (deprecated_target_wait_hook)
@@ -7600,7 +7612,7 @@ clear_exit_convenience_vars (void)
    Set exec-direction / show exec-direction commands
    (returns error unless target implements to_set_exec_direction method).  */
 
-int execution_direction = EXEC_FORWARD;
+enum exec_direction_kind execution_direction = EXEC_FORWARD;
 static const char exec_forward[] = "forward";
 static const char exec_reverse[] = "reverse";
 static const char *exec_direction = exec_forward;
