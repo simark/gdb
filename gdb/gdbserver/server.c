@@ -383,7 +383,8 @@ write_qxfer_response (char *buf, const void *data, int len, int is_more)
   else
     buf[0] = 'l';
 
-  return remote_escape_output (data, len, (unsigned char *) buf + 1, &out_len,
+  return remote_escape_output ((const gdb_byte *) data, len,
+			       (gdb_byte *) buf + 1, &out_len,
 			       PBUFSIZ - 2) + 1;
 }
 
