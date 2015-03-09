@@ -851,7 +851,9 @@ IP_AGENT_EXPORT_VAR int trace_buffer_is_full;
 
 /* The first error that occurred during expression evaluation.  */
 
-IP_AGENT_EXPORT_VAR enum eval_result_type expr_eval_result = expr_eval_no_error;
+/* Stored as an int to avoid the IPA ABI being dependent on
+   -fno-short-enums, etc.  Holds enum eval_result_type values.  */
+IP_AGENT_EXPORT_VAR int expr_eval_result = expr_eval_no_error;
 
 EXTERN_C_POP
 
