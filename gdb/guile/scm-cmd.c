@@ -530,7 +530,7 @@ gdbscm_parse_command_name (const char *name,
       msg = xstrprintf (_("could not find command prefix '%s'"), prefix_text);
       xfree (prefix_text);
       xfree (result);
-      scm_dynwind_begin (0);
+      scm_dynwind_begin ((scm_t_dynwind_flags) 0);
       gdbscm_dynwind_xfree (msg);
       gdbscm_out_of_range_error (func_name, arg_pos,
 				 gdbscm_scm_from_c_string (name), msg);
@@ -546,7 +546,7 @@ gdbscm_parse_command_name (const char *name,
   msg = xstrprintf (_("'%s' is not a prefix command"), prefix_text);
   xfree (prefix_text);
   xfree (result);
-  scm_dynwind_begin (0);
+  scm_dynwind_begin ((scm_t_dynwind_flags) 0);
   gdbscm_dynwind_xfree (msg);
   gdbscm_out_of_range_error (func_name, arg_pos,
 			     gdbscm_scm_from_c_string (name), msg);
@@ -673,7 +673,7 @@ gdbscm_make_command (SCM name_scm, SCM rest)
   int doc_arg_pos = -1;
   char *s;
   char *name;
-  int command_class = no_class;
+  enum command_class command_class = no_class;
   SCM completer_class = SCM_BOOL_F;
   int is_prefix = 0;
   char *doc = NULL;

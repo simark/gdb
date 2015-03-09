@@ -340,8 +340,8 @@ gdbscm_make_breakpoint (SCM location_scm, SCM rest)
   char *s;
   char *location;
   int type_arg_pos = -1, access_type_arg_pos = -1, internal_arg_pos = -1;
-  int type = bp_breakpoint;
-  int access_type = hw_write;
+  enum bptype type = bp_breakpoint;
+  enum target_hw_bp_type access_type = hw_write;
   int internal = 0;
   SCM result;
   breakpoint_smob *bp_smob;
@@ -945,7 +945,7 @@ gdbscm_set_breakpoint_stop_x (SCM self, SCM newvalue)
 			" this breakpoint."),
 		      ext_lang_capitalized_name (extlang));
 
-      scm_dynwind_begin (0);
+      scm_dynwind_begin ((scm_t_dynwind_flags) 0);
       gdbscm_dynwind_xfree (error_text);
       gdbscm_out_of_range_error (FUNC_NAME, SCM_ARG1, self, error_text);
       /* The following line, while unnecessary, is present for completeness
