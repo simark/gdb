@@ -19669,7 +19669,11 @@ store_in_ref_table (struct die_info *die, struct dwarf2_cu *cu)
 static sect_offset
 dwarf2_get_ref_die_offset (const struct attribute *attr)
 {
-  sect_offset retval = { DW_UNSND (attr) };
+  /* error: narrowing conversion of
+     ‘attr->attribute::u.attribute::<anonymous union>::unsnd’ from
+     ‘const ULONGEST {aka const long unsigned int}’ to ‘unsigned int’
+     inside { } is ill-formed in C++11 [-Werror=narrowing] */
+  sect_offset retval = { (unsigned) DW_UNSND (attr) };
 
   if (attr_form_is_ref (attr))
     return retval;
