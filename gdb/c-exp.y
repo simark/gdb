@@ -2277,7 +2277,8 @@ struct token
   char *oper;
   int token;
   enum exp_opcode opcode;
-  enum token_flags flags;
+  /* A bit-vector of token attributes.  See enum token_flags.  */
+  unsigned int flags;
 };
 
 static const struct token tokentab3[] =
