@@ -75,7 +75,7 @@ static int timeout = 30;
 
 static int in_monitor_wait = 0;	/* Non-zero means we are in monitor_wait().  */
 
-static void (*ofunc) ();	/* Old SIGINT signal handler.  */
+static void (*ofunc) (int);	/* Old SIGINT signal handler.  */
 
 static CORE_ADDR *breakaddr;
 
@@ -1112,7 +1112,7 @@ monitor_wait (struct target_ops *ops,
   timeout = -1;		/* Don't time out -- user program is running.  */
 #endif
 
-  ofunc = (void (*)()) signal (SIGINT, monitor_interrupt);
+  ofunc = signal (SIGINT, monitor_interrupt);
 
   if (current_monitor->wait_filter)
     (*current_monitor->wait_filter) (buf, sizeof (buf), &resp_len, status);
