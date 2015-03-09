@@ -807,28 +807,28 @@ static enum gdb_syscall
 ppc_canonicalize_syscall (int syscall)
 {
   if (syscall <= 165)
-    return syscall;
+    return (enum gdb_syscall) syscall;
   else if (syscall >= 167 && syscall <= 190)	/* Skip query_module 166 */
-    return syscall + 1;
+    return (enum gdb_syscall) (syscall + 1);
   else if (syscall >= 192 && syscall <= 197)	/* mmap2 */
-    return syscall;
+    return (enum gdb_syscall) (syscall);
   else if (syscall == 208)			/* tkill */
     return gdb_sys_tkill;
   else if (syscall >= 207 && syscall <= 220)	/* gettid */
-    return syscall + 224 - 207;
+    return (enum gdb_syscall) (syscall + 224 - 207);
   else if (syscall >= 234 && syscall <= 239)	/* exit_group */
-    return syscall + 252 - 234;
+    return (enum gdb_syscall) (syscall + 252 - 234);
   else if (syscall >= 240 && syscall <=248)	/* timer_create */
-    return syscall += 259 - 240;
+    return (enum gdb_syscall) (syscall += 259 - 240);
   else if (syscall >= 250 && syscall <=251)	/* tgkill */
-    return syscall + 270 - 250;
+    return (enum gdb_syscall) (syscall + 270 - 250);
   else if (syscall == 336)
     return gdb_sys_recv;
   else if (syscall == 337)
     return gdb_sys_recvfrom;
   else if (syscall == 342)
     return gdb_sys_recvmsg;
-  return -1;
+  return (enum gdb_syscall) -1;
 }
 
 /* Record registers which might be clobbered during system call.
