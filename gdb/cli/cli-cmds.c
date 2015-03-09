@@ -912,7 +912,8 @@ list_command (char *arg, int from_tty)
 	    first -= 1;
 
 	  print_source_lines (cursal.symtab, first,
-			      first + get_lines_to_list (), 0);
+			      first + get_lines_to_list (),
+			      PRINT_SOURCE_LINES_DEFAULT);
 	  return;
 	}
     }
@@ -922,7 +923,8 @@ list_command (char *arg, int from_tty)
   if (arg == 0 || strcmp (arg, "+") == 0)
     {
       print_source_lines (cursal.symtab, cursal.line,
-			  cursal.line + get_lines_to_list (), 0);
+			  cursal.line + get_lines_to_list (),
+			  PRINT_SOURCE_LINES_DEFAULT);
       return;
     }
 
@@ -933,7 +935,8 @@ list_command (char *arg, int from_tty)
       print_source_lines (cursal.symtab,
 			  max (get_first_line_listed () 
 			       - get_lines_to_list (), 1),
-			  get_first_line_listed (), 0);
+			  get_first_line_listed (),
+			  PRINT_SOURCE_LINES_DEFAULT);
       return;
     }
 
@@ -1056,7 +1059,8 @@ list_command (char *arg, int from_tty)
   if (dummy_beg)
     print_source_lines (sal_end.symtab,
 			max (sal_end.line - (get_lines_to_list () - 1), 1),
-			sal_end.line + 1, 0);
+			sal_end.line + 1,
+			PRINT_SOURCE_LINES_DEFAULT);
   else if (sal.symtab == 0)
     error (_("No default source file yet.  Do \"help list\"."));
   else if (no_end)
@@ -1068,14 +1072,14 @@ list_command (char *arg, int from_tty)
       print_source_lines (sal.symtab,
 		          first_line,
 			  first_line + get_lines_to_list (),
-			  0);
+			  PRINT_SOURCE_LINES_DEFAULT);
     }
   else
     print_source_lines (sal.symtab, sal.line,
 			(dummy_end
 			 ? sal.line + get_lines_to_list ()
 			 : sal_end.line + 1),
-			0);
+			PRINT_SOURCE_LINES_DEFAULT);
 }
 
 /* Subroutine of disassemble_command to simplify it.

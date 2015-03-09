@@ -1429,6 +1429,9 @@ extern int identify_source_line (struct symtab *, int, int, CORE_ADDR);
 
 enum print_source_lines_flags
   {
+    /* Nothing special.  */
+    PRINT_SOURCE_LINES_DEFAULT = 0,
+
     /* Do not print an error message.  */
     PRINT_SOURCE_LINES_NOERROR = (1 << 0),
 
