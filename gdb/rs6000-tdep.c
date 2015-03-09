@@ -3087,7 +3087,7 @@ static struct variant variants[] =
   {"rs2", "IBM POWER RS2", bfd_arch_rs6000,
    bfd_mach_rs6k_rs2, &tdesc_rs6000},
 
-  {0, 0, 0, 0, 0}
+  {0, 0, (enum bfd_architecture) 0, 0, 0}
 };
 
 /* Return the variant corresponding to architecture ARCH and machine number
@@ -6060,7 +6060,7 @@ powerpc_set_vector_abi (char *args, int from_tty,
     if (strcmp (powerpc_vector_abi_string,
 		powerpc_vector_strings[vector_abi]) == 0)
       {
-	powerpc_vector_abi_global = vector_abi;
+	powerpc_vector_abi_global = (enum powerpc_vector_abi) vector_abi;
 	break;
       }
 
