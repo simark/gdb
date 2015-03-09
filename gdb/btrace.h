@@ -247,7 +247,7 @@ struct btrace_thread_info
   unsigned int ngaps;
 
   /* A bit-vector of btrace_thread_flag.  */
-  enum btrace_thread_flag flags;
+  unsigned int flags;
 
   /* The instruction history iterator.  */
   struct btrace_insn_history *insn_history;
