@@ -1435,14 +1435,14 @@ m32r_can_use_hw_watchpoint (struct target_ops *self,
 
 static int
 m32r_insert_watchpoint (struct target_ops *self,
-			CORE_ADDR addr, int len, int type,
+			CORE_ADDR addr, int len, enum target_hw_bp_type type,
 			struct expression *cond)
 {
   int i;
 
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_insert_watchpoint(%s,%d,%d)\n",
-			paddress (target_gdbarch (), addr), len, type);
+			paddress (target_gdbarch (), addr), len, (int) type);
 
   for (i = 0; i < MAX_ACCESS_BREAKS; i++)
     {
@@ -1461,14 +1461,14 @@ m32r_insert_watchpoint (struct target_ops *self,
 
 static int
 m32r_remove_watchpoint (struct target_ops *self,
-			CORE_ADDR addr, int len, int type,
+			CORE_ADDR addr, int len, enum target_hw_bp_type type,
 			struct expression *cond)
 {
   int i;
 
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_remove_watchpoint(%s,%d,%d)\n",
-			paddress (target_gdbarch (), addr), len, type);
+			paddress (target_gdbarch (), addr), len, (int) type);
 
   for (i = 0; i < MAX_ACCESS_BREAKS; i++)
     {
