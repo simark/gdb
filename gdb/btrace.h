@@ -152,7 +152,7 @@ struct btrace_function
   int level;
 
   /* A bit-vector of btrace_function_flag.  */
-  enum btrace_function_flag flags;
+  unsigned flags;
 };
 
 /* A branch trace instruction iterator.  */

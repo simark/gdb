@@ -1965,7 +1965,7 @@ update_watchpoint (struct watchpoint *b, int reparse)
 		      && TYPE_CODE (vtype) != TYPE_CODE_ARRAY))
 		{
 		  CORE_ADDR addr;
-		  int type;
+		  enum target_hw_bp_type type;
 		  struct bp_location *loc, **tmp;
 		  int bitpos = 0, bitsize = 0;
 
@@ -2126,7 +2126,7 @@ update_watchpoint (struct watchpoint *b, int reparse)
 	  base->loc->pspace = frame_pspace;
 	  base->loc->address = -1;
 	  base->loc->length = -1;
-	  base->loc->watchpoint_type = -1;
+	  base->loc->watchpoint_type = (enum target_hw_bp_type) -1;
 	}
     }
   else if (!within_current_scope)
@@ -4219,7 +4219,7 @@ breakpoint_here_p (struct address_space *aspace, CORE_ADDR pc)
 	}
     }
 
-  return any_breakpoint_here ? ordinary_breakpoint_here : 0;
+  return any_breakpoint_here ? ordinary_breakpoint_here : no_breakpoint_here;
 }
 
 /* Return true if there's a moribund breakpoint at PC.  */
@@ -4847,7 +4847,7 @@ print_solib_event (int is_catchpoint)
 enum print_stop_action
 bpstat_print (bpstat bs, int kind)
 {
-  int val;
+  enum print_stop_action val;
 
   /* Maybe another breakpoint in the chain caused us to stop.
      (Currently all watchpoints go on the bpstat whether hit or not.

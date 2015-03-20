@@ -966,7 +966,7 @@ record_btrace_call_history (struct target_ops *self, int size, int flags)
     }
 
   if (covered > 0)
-    btrace_call_history (uiout, btinfo, &begin, &end, flags);
+    btrace_call_history (uiout, btinfo, &begin, &end, (enum record_print_flag) flags);
   else
     {
       if (size < 0)
@@ -1026,7 +1026,7 @@ record_btrace_call_history_range (struct target_ops *self,
       btrace_call_next (&end, 1);
     }
 
-  btrace_call_history (uiout, btinfo, &begin, &end, flags);
+  btrace_call_history (uiout, btinfo, &begin, &end, (enum record_print_flag) flags);
   btrace_set_call_history (btinfo, &begin, &end);
 
   do_cleanups (uiout_cleanup);
@@ -1860,7 +1860,7 @@ record_btrace_step_thread (struct thread_info *tp)
   struct btrace_thread_info *btinfo;
   struct address_space *aspace;
   struct inferior *inf;
-  enum btrace_thread_flag flags;
+  unsigned int flags;
   unsigned int steps;
 
   /* We can't step without an execution history.  */
