@@ -130,7 +130,7 @@ struct callback_event
   {
     int id;
     callback_handler_func *proc;
-    gdb_client_data *data;
+    gdb_client_data client_data;
     struct callback_event *next;
   };
 
@@ -195,14 +195,15 @@ process_event (void)
    delete_callback_event.  */
 
 int
-append_callback_event (callback_handler_func *proc, gdb_client_data data)
+append_callback_event (callback_handler_func *proc,
+		       gdb_client_data client_data)
 {
   struct callback_event *event_ptr;
 
   event_ptr = xmalloc (sizeof (*event_ptr));
   event_ptr->id = callback_list.num_callbacks++;
   event_ptr->proc = proc;
-  event_ptr->data = data;
+  event_ptr->client_data = client_data;
   event_ptr->next = NULL;
   if (callback_list.first == NULL)
     callback_list.first = event_ptr;
@@ -249,7 +250,7 @@ process_callback (void)
   if (event_ptr != NULL)
     {
       callback_handler_func *proc = event_ptr->proc;
-      gdb_client_data *data = event_ptr->data;
+      gdb_client_data client_data = event_ptr->client_data;
 
       /* Remove the event before calling PROC,
 	 more events may get added by PROC.  */
@@ -257,7 +258,7 @@ process_callback (void)
       if (callback_list.first == NULL)
 	callback_list.last = NULL;
       free  (event_ptr);
-      if ((*proc) (data))
+      if ((*proc) (client_data))
 	return -1;
       return 1;
     }
