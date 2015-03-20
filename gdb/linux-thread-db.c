@@ -133,6 +133,43 @@ static int thread_signals;
 static sigset_t thread_stop_set;
 static sigset_t thread_print_set;
 
+/* Types of the libthread_db functions.  */
+
+typedef td_err_e (td_init_ftype) (void);
+
+typedef td_err_e (td_ta_new_ftype) (struct ps_prochandle * ps,
+				    td_thragent_t **ta);
+typedef td_err_e (td_ta_map_id2thr_ftype) (const td_thragent_t *ta, thread_t pt,
+					   td_thrhandle_t *__th);
+typedef td_err_e (td_ta_map_lwp2thr_ftype) (const td_thragent_t *ta,
+					    lwpid_t lwpid, td_thrhandle_t *th);
+typedef td_err_e (td_ta_thr_iter_ftype) (const td_thragent_t *ta,
+					 td_thr_iter_f *callback, void *cbdata_p,
+					 td_thr_state_e state, int ti_pri,
+					 sigset_t *ti_sigmask_p,
+					 unsigned int ti_user_flags);
+typedef td_err_e (td_ta_event_addr_ftype) (const td_thragent_t *ta,
+					   td_event_e event, td_notify_t *ptr);
+typedef td_err_e (td_ta_set_event_ftype) (const td_thragent_t *ta,
+					  td_thr_events_t *event);
+typedef td_err_e (td_ta_clear_event_ftype) (const td_thragent_t *ta,
+					    td_thr_events_t *event);
+typedef td_err_e (td_ta_event_getmsg_ftype) (const td_thragent_t *ta,
+					     td_event_msg_t *msg);
+
+typedef td_err_e (td_thr_validate_ftype) (const td_thrhandle_t *th);
+typedef td_err_e (td_thr_get_info_ftype) (const td_thrhandle_t *th,
+					  td_thrinfo_t *infop);
+typedef td_err_e (td_thr_event_enable_ftype) (const td_thrhandle_t *th,
+					      int event);
+
+typedef td_err_e (td_thr_tls_get_addr_ftype) (const td_thrhandle_t *th,
+					      psaddr_t map_address,
+					      size_t offset, psaddr_t *address);
+typedef td_err_e (td_thr_tlsbase_ftype) (const td_thrhandle_t *th,
+					 unsigned long int modid,
+					 psaddr_t *base);
+
 struct thread_db_info
 {
   struct thread_db_info *next;
@@ -174,40 +211,20 @@ struct thread_db_info
 
   /* Pointers to the libthread_db functions.  */
 
-  td_err_e (*td_init_p) (void);
-
-  td_err_e (*td_ta_new_p) (struct ps_prochandle * ps,
-				td_thragent_t **ta);
-  td_err_e (*td_ta_map_id2thr_p) (const td_thragent_t *ta, thread_t pt,
-				  td_thrhandle_t *__th);
-  td_err_e (*td_ta_map_lwp2thr_p) (const td_thragent_t *ta,
-				   lwpid_t lwpid, td_thrhandle_t *th);
-  td_err_e (*td_ta_thr_iter_p) (const td_thragent_t *ta,
-				td_thr_iter_f *callback, void *cbdata_p,
-				td_thr_state_e state, int ti_pri,
-				sigset_t *ti_sigmask_p,
-				unsigned int ti_user_flags);
-  td_err_e (*td_ta_event_addr_p) (const td_thragent_t *ta,
-				  td_event_e event, td_notify_t *ptr);
-  td_err_e (*td_ta_set_event_p) (const td_thragent_t *ta,
-				 td_thr_events_t *event);
-  td_err_e (*td_ta_clear_event_p) (const td_thragent_t *ta,
-				   td_thr_events_t *event);
-  td_err_e (*td_ta_event_getmsg_p) (const td_thragent_t *ta,
-				    td_event_msg_t *msg);
-
-  td_err_e (*td_thr_validate_p) (const td_thrhandle_t *th);
-  td_err_e (*td_thr_get_info_p) (const td_thrhandle_t *th,
-				 td_thrinfo_t *infop);
-  td_err_e (*td_thr_event_enable_p) (const td_thrhandle_t *th,
-				     int event);
-
-  td_err_e (*td_thr_tls_get_addr_p) (const td_thrhandle_t *th,
-				     psaddr_t map_address,
-				     size_t offset, psaddr_t *address);
-  td_err_e (*td_thr_tlsbase_p) (const td_thrhandle_t *th,
-				unsigned long int modid,
-				psaddr_t *base);
+  td_init_ftype *td_init_p;
+  td_ta_new_ftype *td_ta_new_p;
+  td_ta_map_id2thr_ftype *td_ta_map_id2thr_p;
+  td_ta_map_lwp2thr_ftype *td_ta_map_lwp2thr_p;
+  td_ta_thr_iter_ftype *td_ta_thr_iter_p;
+  td_ta_event_addr_ftype *td_ta_event_addr_p;
+  td_ta_set_event_ftype *td_ta_set_event_p;
+  td_ta_clear_event_ftype *td_ta_clear_event_p;
+  td_ta_event_getmsg_ftype * td_ta_event_getmsg_p;
+  td_thr_validate_ftype *td_thr_validate_p;
+  td_thr_get_info_ftype *td_thr_get_info_p;
+  td_thr_event_enable_ftype *td_thr_event_enable_p;
+  td_thr_tls_get_addr_ftype *td_thr_tls_get_addr_p;
+  td_thr_tlsbase_ftype *td_thr_tlsbase_p;
 };
 
 /* List of known processes using thread_db, and the required
@@ -680,7 +697,8 @@ try_thread_db_load_1 (struct thread_db_info *info)
   /* Initialize pointers to the dynamic library functions we will use.
      Essential functions first.  */
 
-  info->td_init_p = verbose_dlsym (info->handle, "td_init");
+  info->td_init_p
+    = (td_init_ftype *) verbose_dlsym (info->handle, "td_init");
   if (info->td_init_p == NULL)
     return 0;
 
@@ -692,7 +710,8 @@ try_thread_db_load_1 (struct thread_db_info *info)
       return 0;
     }
 
-  info->td_ta_new_p = verbose_dlsym (info->handle, "td_ta_new");
+  info->td_ta_new_p
+    = (td_ta_new_ftype *) verbose_dlsym (info->handle, "td_ta_new");
   if (info->td_ta_new_p == NULL)
     return 0;
 
@@ -723,35 +742,41 @@ try_thread_db_load_1 (struct thread_db_info *info)
       return 0;
     }
 
-  info->td_ta_map_id2thr_p = verbose_dlsym (info->handle, "td_ta_map_id2thr");
-  if (info->td_ta_map_id2thr_p == NULL)
-    return 0;
+  /* Initialize pointers to the dynamic library functions we will use.
+     Essential functions first.  */
 
-  info->td_ta_map_lwp2thr_p = verbose_dlsym (info->handle,
-					     "td_ta_map_lwp2thr");
-  if (info->td_ta_map_lwp2thr_p == NULL)
-    return 0;
+#define TDB_VERBOSE_DLSYM(info, func)			\
+  info->func ## _p = (func ## _ftype *) verbose_dlsym (info->handle, #func)
 
-  info->td_ta_thr_iter_p = verbose_dlsym (info->handle, "td_ta_thr_iter");
-  if (info->td_ta_thr_iter_p == NULL)
-    return 0;
+#define TDB_DLSYM(info, func)			\
+  info->func ## _p = (func ## _ftype *) dlsym (info->handle, #func)
 
-  info->td_thr_validate_p = verbose_dlsym (info->handle, "td_thr_validate");
-  if (info->td_thr_validate_p == NULL)
-    return 0;
+#define CHK(a)								\
+  do									\
+    {									\
+      if ((a) == NULL)							\
+	return 0;							\
+  } while (0)
 
-  info->td_thr_get_info_p = verbose_dlsym (info->handle, "td_thr_get_info");
-  if (info->td_thr_get_info_p == NULL)
-    return 0;
+  /* These are essential.  */
+  CHK (TDB_VERBOSE_DLSYM (info, td_ta_map_id2thr));
+  CHK (TDB_VERBOSE_DLSYM (info, td_ta_map_lwp2thr));
+  CHK (TDB_VERBOSE_DLSYM (info, td_ta_thr_iter));
+  CHK (TDB_VERBOSE_DLSYM (info, td_thr_validate));
+  CHK (TDB_VERBOSE_DLSYM (info, td_thr_get_info));
 
   /* These are not essential.  */
-  info->td_ta_event_addr_p = dlsym (info->handle, "td_ta_event_addr");
-  info->td_ta_set_event_p = dlsym (info->handle, "td_ta_set_event");
-  info->td_ta_clear_event_p = dlsym (info->handle, "td_ta_clear_event");
-  info->td_ta_event_getmsg_p = dlsym (info->handle, "td_ta_event_getmsg");
-  info->td_thr_event_enable_p = dlsym (info->handle, "td_thr_event_enable");
-  info->td_thr_tls_get_addr_p = dlsym (info->handle, "td_thr_tls_get_addr");
-  info->td_thr_tlsbase_p = dlsym (info->handle, "td_thr_tlsbase");
+  TDB_DLSYM (info, td_ta_event_addr);
+  TDB_DLSYM (info, td_ta_set_event);
+  TDB_DLSYM (info, td_ta_clear_event);
+  TDB_DLSYM (info, td_ta_event_getmsg);
+  TDB_DLSYM (info, td_thr_event_enable);
+  TDB_DLSYM (info, td_thr_tls_get_addr);
+  TDB_DLSYM (info, td_thr_tlsbase);
+
+#undef TDB_VERBOSE_DLSYM
+#undef TDB_DLSYM
+#undef CHK
 
   /* It's best to avoid td_ta_thr_iter if possible.  That walks data
      structures in the inferior's address space that may be corrupted,
@@ -906,7 +931,7 @@ try_thread_db_load_from_pdir_1 (struct objfile *obj, const char *subdir)
       return 0;
     }
 
-  path = xmalloc (strlen (obj_name) + (subdir ? strlen (subdir) + 1 : 0)
+  path = (char *) xmalloc (strlen (obj_name) + (subdir ? strlen (subdir) + 1 : 0)
 		  + 1 + strlen (LIBTHREAD_DB_SO) + 1);
   cleanup = make_cleanup (xfree, path);
 
@@ -984,7 +1009,7 @@ try_thread_db_load_from_dir (const char *dir, size_t dir_len)
   if (!auto_load_thread_db)
     return 0;
 
-  path = xmalloc (dir_len + 1 + strlen (LIBTHREAD_DB_SO) + 1);
+  path = (char *) xmalloc (dir_len + 1 + strlen (LIBTHREAD_DB_SO) + 1);
   cleanup = make_cleanup (xfree, path);
 
   memcpy (path, dir, dir_len);
@@ -1029,7 +1054,7 @@ thread_db_load_search (void)
 
 	  if (this_dir[pdir_len] == '/')
 	    {
-	      subdir = xmalloc (strlen (this_dir));
+	      subdir = (char *) xmalloc (strlen (this_dir));
 	      make_cleanup (xfree, subdir);
 	      strcpy (subdir, this_dir + pdir_len + 1);
 	    }
@@ -1592,7 +1617,7 @@ find_new_threads_callback (const td_thrhandle_t *th_p, void *data)
   td_err_e err;
   ptid_t ptid;
   struct thread_info *tp;
-  struct callback_data *cb_data = data;
+  struct callback_data *cb_data = (struct callback_data *) data;
   struct thread_db_info *info = cb_data->info;
 
   err = info->td_thr_get_info_p (th_p, &ti);
@@ -2088,7 +2113,7 @@ info_auto_load_libthread_db (char *args, int from_tty)
   ui_out_table_header (uiout, pids_len, ui_left, "PIDs", "Pids");
   ui_out_table_body (uiout);
 
-  pids = xmalloc (max_pids_len + 1);
+  pids = (char *) xmalloc (max_pids_len + 1);
   make_cleanup (xfree, pids);
 
   /* Note I is incremented inside the cycle, not at its end.  */
