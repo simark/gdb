@@ -31,7 +31,7 @@
 #include "aarch64-linux-tdep.h"
 #include "elf/common.h"
 
-#include <sys/ptrace.h>
+#include "nat/gdb_ptrace.h"
 #include <sys/utsname.h>
 #include <asm/ptrace.h>
 

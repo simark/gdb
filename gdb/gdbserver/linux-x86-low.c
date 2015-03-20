@@ -25,6 +25,7 @@
 #include "i387-fp.h"
 #include "x86-low.h"
 #include "x86-xstate.h"
+#include "nat/gdb_ptrace.h"
 
 #include "gdb_proc_service.h"
 /* Don't include elf/common.h if linux/elf.h got included by

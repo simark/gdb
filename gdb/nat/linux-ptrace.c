@@ -22,6 +22,7 @@
 #include "linux-waitpid.h"
 #include "buffer.h"
 #include "gdb_wait.h"
+#include "gdb_ptrace.h"
 
 #include <stdint.h>
 
