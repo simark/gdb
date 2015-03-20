@@ -458,7 +458,7 @@ linux_enable_bts (ptid_t ptid, const struct btrace_config_bts *conf)
   unsigned long long size, pages;
   int pid, pg;
 
-  tinfo = xzalloc (sizeof (*tinfo));
+  tinfo = XCNEW (struct btrace_target_info);
   tinfo->ptid = ptid;
   tinfo->ptr_bits = linux_determine_kernel_ptr_bits ();
 

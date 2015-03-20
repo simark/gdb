@@ -111,7 +111,7 @@ mi_parse_argv (const char *args, struct mi_parse *parse)
 {
   const char *chp = args;
   int argc = 0;
-  char **argv = xmalloc ((argc + 1) * sizeof (char *));
+  char **argv = XNEWVEC (char *, argc + 1);
 
   argv[argc] = NULL;
   while (1)
@@ -165,7 +165,7 @@ mi_parse_argv (const char *args, struct mi_parse *parse)
 		return;
 	      }
 	    /* Create the buffer and copy characters in.  */
-	    arg = xmalloc ((len + 1) * sizeof (char));
+	    arg = XNEWVEC (char, len + 1);
 	    chp = start;
 	    len = 0;
 	    while (*chp != '\0' && *chp != '"')
@@ -195,7 +195,7 @@ mi_parse_argv (const char *args, struct mi_parse *parse)
 		chp++;
 	      }
 	    len = chp - start;
-	    arg = xmalloc ((len + 1) * sizeof (char));
+	    arg = XNEWVEC (char, len + 1);
 	    strncpy (arg, start, len);
 	    arg[len] = '\0';
 	    break;

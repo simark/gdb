@@ -77,7 +77,7 @@ x86_add_process (pid_t pid)
 {
   struct x86_process_info *proc;
 
-  proc = xcalloc (1, sizeof (*proc));
+  proc = XCNEW (struct x86_process_info);
   proc->pid = pid;
 
   proc->next = x86_process_list;
