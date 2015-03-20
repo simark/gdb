@@ -1247,7 +1247,7 @@ end_symtab_get_static_block (CORE_ADDR end_addr, int expandable, int required)
       for (pb = pending_blocks; pb != NULL; pb = pb->next)
 	count++;
 
-      barray = xmalloc (sizeof (*barray) * count);
+      barray = XNEWVEC (struct block *, count);
       back_to = make_cleanup (xfree, barray);
 
       bp = barray;

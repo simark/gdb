@@ -287,7 +287,7 @@ static int (*linux_nat_status_is_event) (int status) = sigtrap_is_event;
 static void
 add_to_pid_list (struct simple_pid_list **listp, int pid, int status)
 {
-  struct simple_pid_list *new_pid = xmalloc (sizeof (struct simple_pid_list));
+  struct simple_pid_list *new_pid = XNEW (struct simple_pid_list);
 
   new_pid->pid = pid;
   new_pid->status = status;

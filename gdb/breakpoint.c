@@ -714,8 +714,7 @@ clear_breakpoint_hit_counts (void)
 static struct counted_command_line *
 alloc_counted_command_line (struct command_line *commands)
 {
-  struct counted_command_line *result
-    = xmalloc (sizeof (struct counted_command_line));
+  struct counted_command_line *result = XNEW (struct counted_command_line);
 
   result->refc = 1;
   result->commands = commands;
@@ -9055,10 +9054,9 @@ update_dprintf_command_list (struct breakpoint *b)
   gdb_assert (printf_line != NULL);
   /* Manufacture a printf sequence.  */
   {
-    struct command_line *printf_cmd_line
-      = xmalloc (sizeof (struct command_line));
+    struct command_line *printf_cmd_line = XNEW (struct command_line);
 
-    printf_cmd_line = xmalloc (sizeof (struct command_line));
+    printf_cmd_line = XNEW (struct command_line);
     printf_cmd_line->control_type = simple_control;
     printf_cmd_line->body_count = 0;
     printf_cmd_line->body_list = NULL;
@@ -9566,7 +9564,7 @@ decode_static_tracepoint_spec (char **arg_p)
     error (_("No known static tracepoint marker named %s"), marker_str);
 
   sals.nelts = VEC_length(static_tracepoint_marker_p, markers);
-  sals.sals = xmalloc (sizeof *sals.sals * sals.nelts);
+  sals.sals = XNEWVEC (struct symtab_and_line, sals.nelts);
 
   for (i = 0; i < sals.nelts; i++)
     {
@@ -11533,7 +11531,7 @@ until_break_command (char *arg, int from_tty, int anywhere)
   if (target_can_async_p () && is_running (inferior_ptid))
     {
       struct until_break_command_continuation_args *args;
-      args = xmalloc (sizeof (*args));
+      args = XNEW (struct until_break_command_continuation_args);
 
       args->breakpoint = breakpoint;
       args->breakpoint2 = breakpoint2;
@@ -12182,7 +12180,7 @@ update_global_location_list (enum ugll_insert_mode insert_mode)
     for (loc = b->loc; loc; loc = loc->next)
       bp_location_count++;
 
-  bp_location = xmalloc (sizeof (*bp_location) * bp_location_count);
+  bp_location = XNEWVEC (struct bp_location *, bp_location_count);
   locp = bp_location;
   ALL_BREAKPOINTS (b)
     for (loc = b->loc; loc; loc = loc->next)

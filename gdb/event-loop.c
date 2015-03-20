@@ -918,7 +918,7 @@ create_async_event_handler (async_event_handler_func *proc,
 {
   async_event_handler *h;
 
-  h = xmalloc (sizeof (*h));
+  h = XNEW (async_event_handler);
   h->ready = 0;
   h->next_handler = NULL;
   h->proc = proc;

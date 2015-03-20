@@ -2929,7 +2929,7 @@ rank_function (struct type **parms, int nparms,
   struct badness_vector *bv;
   int min_len = nparms < nargs ? nparms : nargs;
 
-  bv = xmalloc (sizeof (struct badness_vector));
+  bv = XNEW (struct badness_vector);
   bv->length = nargs + 1;	/* add 1 for the length-match rank.  */
   bv->rank = XNEWVEC (struct rank, nargs + 1);
 
@@ -4329,7 +4329,7 @@ copy_type_recursive (struct objfile *objfile,
   /* For range types, copy the bounds information.  */
   if (TYPE_CODE (type) == TYPE_CODE_RANGE)
     {
-      TYPE_RANGE_DATA (new_type) = xmalloc (sizeof (struct range_bounds));
+      TYPE_RANGE_DATA (new_type) = XNEW (struct range_bounds);
       *TYPE_RANGE_DATA (new_type) = *TYPE_RANGE_DATA (type);
     }
 

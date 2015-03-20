@@ -1682,7 +1682,7 @@ demand_private_info (ptid_t ptid)
 
   if (!info->priv)
     {
-      info->priv = xmalloc (sizeof (*(info->priv)));
+      info->priv = XNEW (struct private_thread_info);
       info->private_dtor = free_private_thread_info;
       info->priv->core = -1;
       info->priv->extra = 0;
@@ -10215,7 +10215,7 @@ remote_bfd_iovec_open (struct bfd *abfd, void *open_closure)
       return NULL;
     }
 
-  stream = xmalloc (sizeof (int));
+  stream = XNEW (int);
   *stream = fd;
   return stream;
 }
