@@ -314,7 +314,7 @@ find_pc_sect_psymtab (struct objfile *objfile, CORE_ADDR pc,
 
   if (objfile->psymtabs_addrmap != NULL)
     {
-      pst = addrmap_find (objfile->psymtabs_addrmap, pc);
+      pst = (struct partial_symtab *) addrmap_find (objfile->psymtabs_addrmap, pc);
       if (pst != NULL)
 	{
 	  /* FIXME: addrmaps currently do not handle overlayed sections,
@@ -1498,8 +1498,8 @@ const struct quick_symbol_functions psym_functions =
 static int
 compare_psymbols (const void *s1p, const void *s2p)
 {
-  struct partial_symbol *const *s1 = s1p;
-  struct partial_symbol *const *s2 = s2p;
+  struct partial_symbol *const *s1 = (struct partial_symbol * const*) s1p;
+  struct partial_symbol *const *s2 = (struct partial_symbol * const*) s2p;
 
   return strcmp_iw_ordered (SYMBOL_SEARCH_NAME (*s1),
 			    SYMBOL_SEARCH_NAME (*s2));
@@ -1618,7 +1618,7 @@ psymbol_bcache_full (struct partial_symbol *sym,
                      struct psymbol_bcache *bcache,
                      int *added)
 {
-  return bcache_full (sym,
+  return (const struct partial_symbol *) bcache_full (sym,
                       sizeof (struct partial_symbol),
                       bcache->bcache,
                       added);
@@ -1796,7 +1796,7 @@ allocate_psymtab (const char *filename, struct objfile *objfile)
 		     sizeof (struct partial_symtab));
 
   memset (psymtab, 0, sizeof (struct partial_symtab));
-  psymtab->filename = bcache (filename, strlen (filename) + 1,
+  psymtab->filename = (const char *) bcache (filename, strlen (filename) + 1,
 			      objfile->per_bfd->filename_cache);
   psymtab->compunit_symtab = NULL;
 
@@ -1873,7 +1873,7 @@ struct psymtab_state
 static void
 discard_psymtabs_upto (void *arg)
 {
-  struct psymtab_state *state = arg;
+  struct psymtab_state *state = (struct psymtab_state *) arg;
 
   while (state->objfile->psymtabs != state->save)
     discard_psymtab (state->objfile, state->objfile->psymtabs);

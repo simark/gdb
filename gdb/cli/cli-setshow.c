@@ -373,7 +373,7 @@ do_set_command (const char *arg, int from_tty, struct cmd_list_element *c)
 	    for (i = 0; c->enums[i]; i++)
 	      msg_len += strlen (c->enums[i]) + 2;
 
-	    msg = xmalloc (msg_len);
+	    msg = (char *) xmalloc (msg_len);
 	    *msg = '\0';
 	    make_cleanup (xfree, msg);
 
@@ -475,7 +475,7 @@ do_set_command (const char *arg, int from_tty, struct cmd_list_element *c)
 
 	  p = p->prefix;
 	}
-      cp = name = xmalloc (length);
+      cp = name = (char *) xmalloc (length);
       cmds = XNEWVEC (struct cmd_list_element *, i);
 
       /* Track back through filed 'prefix' and cache them in CMDS.  */

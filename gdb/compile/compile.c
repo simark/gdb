@@ -168,7 +168,7 @@ compile_code_command (char *arg, int from_tty)
 static void
 do_rmdir (void *arg)
 {
-  const char *dir = arg;
+  const char *dir = (const char *) arg;
   char *zap;
   int wstat;
 
@@ -292,7 +292,7 @@ append_args (int *argcp, char ***argvp, int argc, char **argv)
 {
   int argi;
 
-  *argvp = xrealloc (*argvp, (*argcp + argc + 1) * sizeof (**argvp));
+  *argvp = (char **) xrealloc (*argvp, (*argcp + argc + 1) * sizeof (**argvp));
 
   for (argi = 0; argi < argc; argi++)
     (*argvp)[(*argcp)++] = xstrdup (argv[argi]);
@@ -385,7 +385,7 @@ get_args (const struct compile_instance *compiler, struct gdbarch *gdbarch,
 static void
 cleanup_compile_instance (void *arg)
 {
-  struct compile_instance *inst = arg;
+  struct compile_instance *inst = (struct compile_instance *) arg;
 
   inst->destroy (inst);
 }
@@ -395,7 +395,7 @@ cleanup_compile_instance (void *arg)
 static void
 cleanup_unlink_file (void *arg)
 {
-  const char *filename = arg;
+  const char *filename = (const char *) arg;
 
   unlink (filename);
 }

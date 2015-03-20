@@ -347,7 +347,7 @@ complete_target_initialization (struct target_ops *t)
 static void
 open_target (char *args, int from_tty, struct cmd_list_element *command)
 {
-  struct target_ops *ops = get_cmd_context (command);
+  struct target_ops *ops = (struct target_ops *) get_cmd_context (command);
 
   if (targetdebug)
     fprintf_unfiltered (gdb_stdlog, "-> %s->to_open (...)\n",
@@ -531,7 +531,7 @@ target_supports_terminal_ours (void)
 static void
 cleanup_restore_target_terminal (void *arg)
 {
-  enum terminal_state *previous_state = arg;
+  enum terminal_state *previous_state = (enum terminal_state *) arg;
 
   switch (*previous_state)
     {
@@ -552,7 +552,7 @@ cleanup_restore_target_terminal (void *arg)
 struct cleanup *
 make_cleanup_restore_target_terminal (void)
 {
-  enum terminal_state *ts = xmalloc (sizeof (*ts));
+  enum terminal_state *ts = (enum terminal_state *) xmalloc (sizeof (*ts));
 
   *ts = terminal_state;
 
@@ -926,7 +926,7 @@ target_read_string (CORE_ADDR memaddr, char **string, int len, int *errnop)
 
   /* Small for testing.  */
   buffer_allocated = 4;
-  buffer = xmalloc (buffer_allocated);
+  buffer = (char *) xmalloc (buffer_allocated);
   bufptr = buffer;
 
   while (len > 0)
@@ -953,7 +953,7 @@ target_read_string (CORE_ADDR memaddr, char **string, int len, int *errnop)
 
 	  bytes = bufptr - buffer;
 	  buffer_allocated *= 2;
-	  buffer = xrealloc (buffer, buffer_allocated);
+	  buffer = (char *) xrealloc (buffer, buffer_allocated);
 	  bufptr = buffer + bytes;
 	}
 
@@ -1249,8 +1249,8 @@ memory_xfer_partial (struct target_ops *ops, enum target_object object,
       old_chain = make_cleanup (xfree, buf);
       memcpy (buf, writebuf, len);
 
-      breakpoint_xfer_memory (NULL, buf, writebuf, memaddr, len);
-      res = memory_xfer_partial_1 (ops, object, NULL, buf, memaddr, len,
+      breakpoint_xfer_memory (NULL, (gdb_byte *) buf, writebuf, memaddr, len);
+      res = memory_xfer_partial_1 (ops, object, NULL, (const gdb_byte *) buf, memaddr, len,
 				   xfered_len);
 
       do_cleanups (old_chain);
@@ -1645,7 +1645,7 @@ read_whatever_is_readable (struct target_ops *ops,
 			   ULONGEST begin, ULONGEST end,
 			   VEC(memory_read_result_s) **result)
 {
-  gdb_byte *buf = xmalloc (end - begin);
+  gdb_byte *buf = (gdb_byte *) xmalloc (end - begin);
   ULONGEST current_begin = begin;
   ULONGEST current_end = end;
   int forward;
@@ -1745,7 +1745,7 @@ read_whatever_is_readable (struct target_ops *ops,
       /* The [current_end, end) range has been read.  */
       LONGEST rlen = end - current_end;
 
-      r.data = xmalloc (rlen);
+      r.data = (gdb_byte *) xmalloc (rlen);
       memcpy (r.data, buf + current_end - begin, rlen);
       r.begin = current_end;
       r.end = end;
@@ -1757,7 +1757,7 @@ read_whatever_is_readable (struct target_ops *ops,
 void
 free_memory_read_result_vector (void *x)
 {
-  VEC(memory_read_result_s) *v = x;
+  VEC(memory_read_result_s) *v = (struct VEC_memory_read_result_s *) x;
   memory_read_result_s *current;
   int ix;
 
@@ -1900,7 +1900,7 @@ target_read_alloc_1 (struct target_ops *ops, enum target_object object,
   /* Start by reading up to 4K at a time.  The target will throttle
      this number down if necessary.  */
   buf_alloc = 4096;
-  buf = xmalloc (buf_alloc);
+  buf = (gdb_byte *) xmalloc (buf_alloc);
   buf_pos = 0;
   while (1)
     {
@@ -1933,7 +1933,7 @@ target_read_alloc_1 (struct target_ops *ops, enum target_object object,
       if (buf_alloc < buf_pos * 2)
 	{
 	  buf_alloc *= 2;
-	  buf = xrealloc (buf, buf_alloc);
+	  buf = (gdb_byte *) xrealloc (buf, buf_alloc);
 	}
 
       QUIT;
@@ -2317,7 +2317,7 @@ simple_search_memory (struct target_ops *ops,
   if (search_space_len < search_buf_size)
     search_buf_size = search_space_len;
 
-  search_buf = malloc (search_buf_size);
+  search_buf = (gdb_byte *) malloc (search_buf_size);
   if (search_buf == NULL)
     error (_("Unable to allocate memory to perform the search."));
   old_cleanups = make_cleanup (free_current_contents, &search_buf);
@@ -2345,7 +2345,7 @@ simple_search_memory (struct target_ops *ops,
       gdb_byte *found_ptr;
       unsigned nr_search_bytes = min (search_space_len, search_buf_size);
 
-      found_ptr = memmem (search_buf, nr_search_bytes,
+      found_ptr = (gdb_byte *) memmem (search_buf, nr_search_bytes,
 			  pattern, pattern_len);
 
       if (found_ptr != NULL)
@@ -2884,7 +2884,7 @@ target_fileio_read_alloc_1 (const char *filename,
   /* Start by reading up to 4K at a time.  The target will throttle
      this number down if necessary.  */
   buf_alloc = 4096;
-  buf = xmalloc (buf_alloc);
+  buf = (gdb_byte *) xmalloc (buf_alloc);
   buf_pos = 0;
   while (1)
     {
@@ -2915,7 +2915,7 @@ target_fileio_read_alloc_1 (const char *filename,
       if (buf_alloc < buf_pos * 2)
 	{
 	  buf_alloc *= 2;
-	  buf = xrealloc (buf, buf_alloc);
+	  buf = (gdb_byte *) xrealloc (buf, buf_alloc);
 	}
 
       QUIT;

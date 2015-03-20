@@ -1413,7 +1413,7 @@ end_symtab_with_blockvector (struct block *static_block,
     {
       /* Reallocate the dirname on the symbol obstack.  */
       COMPUNIT_DIRNAME (cu)
-	= obstack_copy0 (&objfile->objfile_obstack,
+	= (const char *) obstack_copy0 (&objfile->objfile_obstack,
 			 buildsym_compunit->comp_dir,
 			 strlen (buildsym_compunit->comp_dir));
     }

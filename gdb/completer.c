@@ -148,14 +148,14 @@ filename_completer (struct cmd_list_element *ignore,
       else if (word > text)
 	{
 	  /* Return some portion of p.  */
-	  q = xmalloc (strlen (p) + 5);
+	  q = (char *) xmalloc (strlen (p) + 5);
 	  strcpy (q, p + (word - text));
 	  xfree (p);
 	}
       else
 	{
 	  /* Return some of TEXT plus p.  */
-	  q = xmalloc (strlen (p) + (text - word) + 5);
+	  q = (char *) xmalloc (strlen (p) + (text - word) + 5);
 	  strncpy (q, word, text - word);
 	  q[text - word] = '\0';
 	  strcat (q, p);
@@ -808,7 +808,7 @@ new_completion_tracker (void)
 static void
 free_completion_tracker (void *p)
 {
-  completion_tracker_t *tracker_ptr = p;
+  completion_tracker_t *tracker_ptr = (struct htab **) p;
 
   htab_delete (*tracker_ptr);
   *tracker_ptr = NULL;

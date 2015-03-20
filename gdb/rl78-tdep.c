@@ -795,7 +795,7 @@ struct rl78_get_opcode_byte_handle
 static int
 rl78_get_opcode_byte (void *handle)
 {
-  struct rl78_get_opcode_byte_handle *opcdata = handle;
+  struct rl78_get_opcode_byte_handle *opcdata = (struct rl78_get_opcode_byte_handle *) handle;
   int status;
   gdb_byte byte;
 
@@ -1019,10 +1019,10 @@ rl78_analyze_frame_prologue (struct frame_info *this_frame,
       if (!func_start)
 	stop_addr = func_start;
 
-      rl78_analyze_prologue (func_start, stop_addr, *this_prologue_cache);
+      rl78_analyze_prologue (func_start, stop_addr, (struct rl78_prologue *) *this_prologue_cache);
     }
 
-  return *this_prologue_cache;
+  return (struct rl78_prologue *) *this_prologue_cache;
 }
 
 /* Given a frame and a prologue cache, return this frame's base.  */

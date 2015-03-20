@@ -271,9 +271,9 @@ ioscm_write (SCM port, const void *data, size_t size)
   TRY
     {
       if (scm_is_eq (port, error_port_scm))
-	fputsn_filtered (data, size, gdb_stderr);
+	fputsn_filtered ((const char *) data, size, gdb_stderr);
       else
-	fputsn_filtered (data, size, gdb_stdout);
+	fputsn_filtered ((const char *) data, size, gdb_stdout);
     }
   CATCH (except, RETURN_MASK_ALL)
     {
@@ -328,7 +328,7 @@ ioscm_init_stdio_buffers (SCM port, long mode_bits)
 
   if (!writing && size > 0)
     {
-      pt->read_buf = scm_gc_malloc_pointerless (size, "port buffer");
+      pt->read_buf = (unsigned char *) scm_gc_malloc_pointerless (size, "port buffer");
       pt->read_pos = pt->read_end = pt->read_buf;
       pt->read_buf_size = size;
     }
@@ -340,7 +340,7 @@ ioscm_init_stdio_buffers (SCM port, long mode_bits)
 
   if (writing && size > 0)
     {
-      pt->write_buf = scm_gc_malloc_pointerless (size, "port buffer");
+      pt->write_buf = (unsigned char *) scm_gc_malloc_pointerless (size, "port buffer");
       pt->write_pos = pt->write_buf;
       pt->write_buf_size = size;
     }
@@ -430,7 +430,7 @@ gdbscm_error_port (void)
 static void
 ioscm_file_port_delete (struct ui_file *file)
 {
-  ioscm_file_port *stream = ui_file_data (file);
+  ioscm_file_port *stream = (ioscm_file_port *) ui_file_data (file);
 
   if (stream->magic != &file_port_magic)
     internal_error (__FILE__, __LINE__,
@@ -441,7 +441,7 @@ ioscm_file_port_delete (struct ui_file *file)
 static void
 ioscm_file_port_rewind (struct ui_file *file)
 {
-  ioscm_file_port *stream = ui_file_data (file);
+  ioscm_file_port *stream = (ioscm_file_port *) ui_file_data (file);
 
   if (stream->magic != &file_port_magic)
     internal_error (__FILE__, __LINE__,
@@ -455,7 +455,7 @@ ioscm_file_port_put (struct ui_file *file,
 		     ui_file_put_method_ftype *write,
 		     void *dest)
 {
-  ioscm_file_port *stream = ui_file_data (file);
+  ioscm_file_port *stream = (ioscm_file_port *) ui_file_data (file);
 
   if (stream->magic != &file_port_magic)
     internal_error (__FILE__, __LINE__,
@@ -469,7 +469,7 @@ ioscm_file_port_write (struct ui_file *file,
 		       const char *buffer,
 		       long length_buffer)
 {
-  ioscm_file_port *stream = ui_file_data (file);
+  ioscm_file_port *stream = (ioscm_file_port *) ui_file_data (file);
 
   if (stream->magic != &file_port_magic)
     internal_error (__FILE__, __LINE__,
@@ -735,7 +735,7 @@ gdbscm_memory_port_write (SCM port, const void *data, size_t size)
 				 _("writing beyond end of memory range"));
     }
 
-  if (target_write_memory (iomem->start + iomem->current, data, size) != 0)
+  if (target_write_memory (iomem->start + iomem->current, (const gdb_byte *) data, size) != 0)
     gdbscm_memory_error (FUNC_NAME, _("error writing memory"), SCM_EOL);
 
   iomem->current += size;
@@ -962,10 +962,10 @@ ioscm_init_memory_port (SCM port, CORE_ADDR start, CORE_ADDR end)
   pt->encoding = NULL;
   pt->rw_random = 1;
   pt->read_buf_size = iomem->read_buf_size;
-  pt->read_buf = xmalloc (pt->read_buf_size);
+  pt->read_buf = (unsigned char *) xmalloc (pt->read_buf_size);
   pt->read_pos = pt->read_end = pt->read_buf;
   pt->write_buf_size = iomem->write_buf_size;
-  pt->write_buf = xmalloc (pt->write_buf_size);
+  pt->write_buf = (unsigned char *) xmalloc (pt->write_buf_size);
   pt->write_pos = pt->write_buf;
   pt->write_end = pt->write_buf + pt->write_buf_size;
 
@@ -1011,7 +1011,7 @@ ioscm_reinit_memory_port (SCM port, size_t read_buf_size,
       iomem->read_buf_size = read_buf_size;
       pt->read_buf_size = read_buf_size;
       xfree (pt->read_buf);
-      pt->read_buf = xmalloc (pt->read_buf_size);
+      pt->read_buf = (unsigned char *) xmalloc (pt->read_buf_size);
       pt->read_pos = pt->read_end = pt->read_buf;
     }
 
@@ -1020,7 +1020,7 @@ ioscm_reinit_memory_port (SCM port, size_t read_buf_size,
       iomem->write_buf_size = write_buf_size;
       pt->write_buf_size = write_buf_size;
       xfree (pt->write_buf);
-      pt->write_buf = xmalloc (pt->write_buf_size);
+      pt->write_buf = (unsigned char *) xmalloc (pt->write_buf_size);
       pt->write_pos = pt->write_buf;
       pt->write_end = pt->write_buf + pt->write_buf_size;
     }

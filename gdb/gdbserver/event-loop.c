@@ -200,7 +200,7 @@ append_callback_event (callback_handler_func *proc,
 {
   struct callback_event *event_ptr;
 
-  event_ptr = xmalloc (sizeof (*event_ptr));
+  event_ptr = (struct callback_event *) xmalloc (sizeof (*event_ptr));
   event_ptr->id = callback_list.num_callbacks++;
   event_ptr->proc = proc;
   event_ptr->client_data = client_data;
@@ -290,7 +290,7 @@ create_file_handler (gdb_fildes_t fd, int mask, handler_func *proc,
      just change the data associated with it.  */
   if (file_ptr == NULL)
     {
-      file_ptr = xmalloc (sizeof (*file_ptr));
+      file_ptr = (struct file_handler *) xmalloc (sizeof (*file_ptr));
       file_ptr->fd = fd;
       file_ptr->ready_mask = 0;
       file_ptr->next_file = gdb_notifier.first_file_handler;
@@ -448,7 +448,7 @@ create_file_event (gdb_fildes_t fd)
 {
   gdb_event *file_event_ptr;
 
-  file_event_ptr = xmalloc (sizeof (gdb_event));
+  file_event_ptr = (struct gdb_event *) xmalloc (sizeof (gdb_event));
   file_event_ptr->proc = handle_file_event;
   file_event_ptr->fd = fd;
   return file_event_ptr;

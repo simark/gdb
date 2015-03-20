@@ -370,7 +370,7 @@ dcache_alloc (DCACHE *dcache, CORE_ADDR addr)
       if (db)
 	remove_block (&dcache->freelist, db);
       else
-	db = xmalloc (offsetof (struct dcache_block, data) +
+	db = (struct dcache_block *) xmalloc (offsetof (struct dcache_block, data) +
 		      dcache->line_size);
 
       dcache->size++;

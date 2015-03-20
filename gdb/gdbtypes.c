@@ -514,7 +514,7 @@ lookup_function_type_with_arguments (struct type *type,
     }
 
   TYPE_NFIELDS (fn) = nparams;
-  TYPE_FIELDS (fn) = TYPE_ZALLOC (fn, nparams * sizeof (struct field));
+  TYPE_FIELDS (fn) = (struct field *) TYPE_ZALLOC (fn, nparams * sizeof (struct field));
   for (i = 0; i < nparams; ++i)
     TYPE_FIELD_TYPE (fn, i) = param_types[i];
 
@@ -1141,7 +1141,7 @@ create_set_type (struct type *result_type, struct type *domain_type)
 
   TYPE_CODE (result_type) = TYPE_CODE_SET;
   TYPE_NFIELDS (result_type) = 1;
-  TYPE_FIELDS (result_type) = TYPE_ZALLOC (result_type, sizeof (struct field));
+  TYPE_FIELDS (result_type) = (struct field *) TYPE_ZALLOC (result_type, sizeof (struct field));
 
   if (!TYPE_STUB (domain_type))
     {
@@ -1383,7 +1383,7 @@ struct type *
 lookup_unsigned_typename (const struct language_defn *language,
 			  struct gdbarch *gdbarch, const char *name)
 {
-  char *uns = alloca (strlen (name) + 10);
+  char *uns = (char *) alloca (strlen (name) + 10);
 
   strcpy (uns, "unsigned ");
   strcpy (uns + 9, name);
@@ -1395,7 +1395,7 @@ lookup_signed_typename (const struct language_defn *language,
 			struct gdbarch *gdbarch, const char *name)
 {
   struct type *t;
-  char *uns = alloca (strlen (name) + 8);
+  char *uns = (char *) alloca (strlen (name) + 8);
 
   strcpy (uns, "signed ");
   strcpy (uns + 7, name);
@@ -1919,7 +1919,7 @@ resolve_dynamic_union (struct type *type,
 
   resolved_type = copy_type (type);
   TYPE_FIELDS (resolved_type)
-    = TYPE_ALLOC (resolved_type,
+    = (struct field *) TYPE_ALLOC (resolved_type,
 		  TYPE_NFIELDS (resolved_type) * sizeof (struct field));
   memcpy (TYPE_FIELDS (resolved_type),
 	  TYPE_FIELDS (type),
@@ -1959,7 +1959,7 @@ resolve_dynamic_struct (struct type *type,
 
   resolved_type = copy_type (type);
   TYPE_FIELDS (resolved_type)
-    = TYPE_ALLOC (resolved_type,
+    = (struct field *) TYPE_ALLOC (resolved_type,
 		  TYPE_NFIELDS (resolved_type) * sizeof (struct field));
   memcpy (TYPE_FIELDS (resolved_type),
 	  TYPE_FIELDS (type),
@@ -4204,7 +4204,7 @@ struct type_pair
 static hashval_t
 type_pair_hash (const void *item)
 {
-  const struct type_pair *pair = item;
+  const struct type_pair *pair = (const struct type_pair *) item;
 
   return htab_hash_pointer (pair->old);
 }
@@ -4212,7 +4212,8 @@ type_pair_hash (const void *item)
 static int
 type_pair_eq (const void *item_lhs, const void *item_rhs)
 {
-  const struct type_pair *lhs = item_lhs, *rhs = item_rhs;
+  const struct type_pair *lhs = (const struct type_pair *) item_lhs;
+  const struct type_pair *rhs = (const struct type_pair *) item_rhs;
 
   return lhs->old == rhs->old;
 }
@@ -4336,7 +4337,7 @@ copy_type_recursive (struct objfile *objfile,
   if (TYPE_DATA_LOCATION (type) != NULL)
     {
       TYPE_DATA_LOCATION (new_type)
-	= TYPE_ALLOC (new_type, sizeof (struct dynamic_prop));
+	= (struct dynamic_prop *) TYPE_ALLOC (new_type, sizeof (struct dynamic_prop));
       memcpy (TYPE_DATA_LOCATION (new_type), TYPE_DATA_LOCATION (type),
 	      sizeof (struct dynamic_prop));
     }
@@ -4406,7 +4407,7 @@ copy_type (const struct type *type)
   if (TYPE_DATA_LOCATION (type) != NULL)
     {
       TYPE_DATA_LOCATION (new_type)
-	= TYPE_ALLOC (new_type, sizeof (struct dynamic_prop));
+	= (struct dynamic_prop *) TYPE_ALLOC (new_type, sizeof (struct dynamic_prop));
       memcpy (TYPE_DATA_LOCATION (new_type), TYPE_DATA_LOCATION (type),
 	      sizeof (struct dynamic_prop));
     }
@@ -4539,7 +4540,7 @@ arch_flags_type (struct gdbarch *gdbarch, char *name, int length)
   type = arch_type (gdbarch, TYPE_CODE_FLAGS, length, name);
   TYPE_UNSIGNED (type) = 1;
   TYPE_NFIELDS (type) = nfields;
-  TYPE_FIELDS (type) = TYPE_ZALLOC (type, nfields * sizeof (struct field));
+  TYPE_FIELDS (type) = (struct field *) TYPE_ZALLOC (type, nfields * sizeof (struct field));
 
   return type;
 }
@@ -4592,7 +4593,7 @@ append_composite_type_field_raw (struct type *t, char *name,
   struct field *f;
 
   TYPE_NFIELDS (t) = TYPE_NFIELDS (t) + 1;
-  TYPE_FIELDS (t) = xrealloc (TYPE_FIELDS (t),
+  TYPE_FIELDS (t) = (struct field *) xrealloc (TYPE_FIELDS (t),
 			      sizeof (struct field) * TYPE_NFIELDS (t));
   f = &(TYPE_FIELDS (t)[TYPE_NFIELDS (t) - 1]);
   memset (f, 0, sizeof f[0]);
@@ -4656,7 +4657,7 @@ static struct gdbarch_data *gdbtypes_data;
 const struct builtin_type *
 builtin_type (struct gdbarch *gdbarch)
 {
-  return gdbarch_data (gdbarch, gdbtypes_data);
+  return (const struct builtin_type *) gdbarch_data (gdbarch, gdbtypes_data);
 }
 
 static void *
@@ -4801,7 +4802,7 @@ objfile_type (struct objfile *objfile)
 {
   struct gdbarch *gdbarch;
   struct objfile_type *objfile_type
-    = objfile_data (objfile, objfile_type_data);
+    = (struct objfile_type *) objfile_data (objfile, objfile_type_data);
 
   if (objfile_type)
     return objfile_type;

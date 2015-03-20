@@ -376,20 +376,20 @@ print_scalar_formatted (const void *valaddr, struct type *type,
       switch (options->format)
 	{
 	case 'o':
-	  print_octal_chars (stream, valaddr, len, byte_order);
+	  print_octal_chars (stream, (const gdb_byte *) valaddr, len, byte_order);
 	  return;
 	case 'u':
 	case 'd':
-	  print_decimal_chars (stream, valaddr, len, byte_order);
+	  print_decimal_chars (stream, (const gdb_byte *) valaddr, len, byte_order);
 	  return;
 	case 't':
-	  print_binary_chars (stream, valaddr, len, byte_order);
+	  print_binary_chars (stream, (const gdb_byte *) valaddr, len, byte_order);
 	  return;
 	case 'x':
-	  print_hex_chars (stream, valaddr, len, byte_order);
+	  print_hex_chars (stream, (const gdb_byte *) valaddr, len, byte_order);
 	  return;
 	case 'c':
-	  print_char_chars (stream, type, valaddr, len, byte_order);
+	  print_char_chars (stream, type, (const gdb_byte *) valaddr, len, byte_order);
 	  return;
 	default:
 	  break;
@@ -397,7 +397,7 @@ print_scalar_formatted (const void *valaddr, struct type *type,
     }
 
   if (options->format != 'f')
-    val_long = unpack_long (type, valaddr);
+    val_long = unpack_long (type, (const gdb_byte *) valaddr);
 
   /* If the value is a pointer, and pointers and addresses are not the
      same, then at this point, the value's length (in target bytes) is
@@ -453,7 +453,7 @@ print_scalar_formatted (const void *valaddr, struct type *type,
 
     case 'a':
       {
-	CORE_ADDR addr = unpack_pointer (type, valaddr);
+	CORE_ADDR addr = unpack_pointer (type, (const gdb_byte *) valaddr);
 
 	print_address (gdbarch, addr, stream);
       }
@@ -475,7 +475,7 @@ print_scalar_formatted (const void *valaddr, struct type *type,
 
     case 'f':
       type = float_type_from_length (type);
-      print_floating (valaddr, type, stream);
+      print_floating ((const gdb_byte *) valaddr, type, stream);
       break;
 
     case 0:
@@ -530,7 +530,7 @@ print_scalar_formatted (const void *valaddr, struct type *type,
       break;
 
     case 'z':
-      print_hex_chars (stream, valaddr, len, byte_order);
+      print_hex_chars (stream, (const gdb_byte *) valaddr, len, byte_order);
       break;
 
     default:
@@ -2059,7 +2059,7 @@ printf_wide_c_string (struct ui_file *stream, const char *format,
   struct type *wctype = lookup_typename (current_language, gdbarch,
 					 "wchar_t", NULL, 0);
   int wcwidth = TYPE_LENGTH (wctype);
-  gdb_byte *buf = alloca (wcwidth);
+  gdb_byte *buf = (gdb_byte *) alloca (wcwidth);
   struct obstack output;
   struct cleanup *inner_cleanup;
 
@@ -2198,7 +2198,7 @@ printf_pointer (struct ui_file *stream, const char *format,
   long val = value_as_long (value);
 #endif
 
-  fmt = alloca (strlen (format) + 5);
+  fmt = (char *) alloca (strlen (format) + 5);
 
   /* Copy up to the leading %.  */
   p = format;

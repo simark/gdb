@@ -530,7 +530,7 @@ IdentifierExp:
 		    $$.ptr = $1.ptr;  /* Optimization.  */
 		  else
 		    {
-		      char *buf = malloc ($$.length + 1);
+		      char *buf = (char *) malloc ($$.length + 1);
 		      make_cleanup (free, buf);
 		      sprintf (buf, "%.*s.%.*s",
 		               $1.length, $1.ptr, $3.length, $3.ptr);
@@ -552,7 +552,7 @@ StringExp:
 
 		  vec->type = $1.type;
 		  vec->length = $1.length;
-		  vec->ptr = malloc ($1.length + 1);
+		  vec->ptr = (char *) malloc ($1.length + 1);
 		  memcpy (vec->ptr, $1.ptr, $1.length + 1);
 		}
 |	StringExp STRING_LITERAL
@@ -560,10 +560,10 @@ StringExp:
 		     for convenience.  */
 		  char *p;
 		  ++$$.len;
-		  $$.tokens = realloc ($$.tokens,
+		  $$.tokens = (struct typed_stoken *) realloc ($$.tokens,
 				       $$.len * sizeof (struct typed_stoken));
 
-		  p = malloc ($2.length + 1);
+		  p = (char *) malloc ($2.length + 1);
 		  memcpy (p, $2.ptr, $2.length + 1);
 
 		  $$.tokens[$$.len - 1].type = $2.type;

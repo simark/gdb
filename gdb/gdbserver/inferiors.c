@@ -105,7 +105,7 @@ remove_inferior (struct inferior_list *list,
 struct thread_info *
 add_thread (ptid_t thread_id, void *target_data)
 {
-  struct thread_info *new_thread = xmalloc (sizeof (*new_thread));
+  struct thread_info *new_thread = (struct thread_info *) xmalloc (sizeof (*new_thread));
 
   memset (new_thread, 0, sizeof (*new_thread));
 
@@ -275,7 +275,7 @@ add_process (int pid, int attached)
 {
   struct process_info *process;
 
-  process = xcalloc (1, sizeof (*process));
+  process = (struct process_info *) xcalloc (1, sizeof (*process));
 
   process->entry.id = pid_to_ptid (pid);
   process->attached = attached;

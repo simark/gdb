@@ -159,7 +159,7 @@ struct simple_pid_list *stopped_pids;
 static void
 add_to_pid_list (struct simple_pid_list **listp, int pid, int status)
 {
-  struct simple_pid_list *new_pid = xmalloc (sizeof (struct simple_pid_list));
+  struct simple_pid_list *new_pid = (struct simple_pid_list *) xmalloc (sizeof (struct simple_pid_list));
 
   new_pid->pid = pid;
   new_pid->status = status;
@@ -357,7 +357,7 @@ linux_add_process (int pid, int attached)
   struct process_info *proc;
 
   proc = add_process (pid, attached);
-  proc->priv = xcalloc (1, sizeof (*proc->priv));
+  proc->priv = (struct process_info_private *) xcalloc (1, sizeof (*proc->priv));
 
   /* Set the arch when the first LWP stops.  */
   proc->priv->new_inferior = 1;
@@ -867,7 +867,7 @@ struct counter
 static int
 second_thread_of_pid_p (struct inferior_list_entry *entry, void *args)
 {
-  struct counter *counter = args;
+  struct counter *counter = (struct counter *) args;
 
   if (ptid_get_pid (entry->id) == counter->pid)
     {
@@ -1199,7 +1199,7 @@ delete_lwp_callback (struct inferior_list_entry *entry, void *proc)
 {
   struct thread_info *thread = (struct thread_info *) entry;
   struct lwp_info *lwp = get_thread_lwp (thread);
-  struct process_info *process = proc;
+  struct process_info *process = (struct process_info *) proc;
 
   if (pid_of (thread) == pid_of (process))
     delete_lwp (lwp);
@@ -1730,7 +1730,7 @@ enqueue_one_deferred_signal (struct lwp_info *lwp, int *wstat)
 	}
     }
 
-  p_sig = xmalloc (sizeof (*p_sig));
+  p_sig = (struct pending_signals *) xmalloc (sizeof (*p_sig));
   p_sig->prev = lwp->pending_signals_to_report;
   p_sig->signal = WSTOPSIG (*wstat);
   memset (&p_sig->info, 0, sizeof (siginfo_t));
@@ -2239,7 +2239,7 @@ count_events_callback (struct inferior_list_entry *entry, void *data)
 {
   struct thread_info *thread = (struct thread_info *) entry;
   struct lwp_info *lp = get_thread_lwp (thread);
-  int *count = data;
+  int *count = (int *) data;
 
   gdb_assert (count != NULL);
 
@@ -2274,7 +2274,7 @@ select_event_lwp_callback (struct inferior_list_entry *entry, void *data)
 {
   struct thread_info *thread = (struct thread_info *) entry;
   struct lwp_info *lp = get_thread_lwp (thread);
-  int *selector = data;
+  int *selector = (int *) data;
 
   gdb_assert (selector != NULL);
 
@@ -3416,7 +3416,7 @@ linux_resume_one_lwp_throw (struct lwp_info *lwp,
 	  || fast_tp_collecting))
     {
       struct pending_signals *p_sig;
-      p_sig = xmalloc (sizeof (*p_sig));
+      p_sig = (struct pending_signals *) xmalloc (sizeof (*p_sig));
       p_sig->prev = lwp->pending_signals;
       p_sig->signal = signal;
       if (info == NULL)
@@ -3661,7 +3661,7 @@ linux_set_resume_request (struct inferior_list_entry *entry, void *arg)
   int ndx;
   struct thread_resume_array *r;
 
-  r = arg;
+  r = (struct thread_resume_array *) arg;
 
   for (ndx = 0; ndx < r->n; ndx++)
     {
@@ -4069,7 +4069,7 @@ linux_resume_one_thread (struct inferior_list_entry *entry, void *arg)
       if (lwp->resume->sig != 0)
 	{
 	  struct pending_signals *p_sig;
-	  p_sig = xmalloc (sizeof (*p_sig));
+	  p_sig = (struct pending_signals *) xmalloc (sizeof (*p_sig));
 	  p_sig->prev = lwp->pending_signals;
 	  p_sig->signal = lwp->resume->sig;
 	  memset (&p_sig->info, 0, sizeof (siginfo_t));
@@ -4343,7 +4343,7 @@ disable_regset (struct regsets_info *info, struct regset_info *regset)
 
   dr_offset = regset - info->regsets;
   if (info->disabled_regsets == NULL)
-    info->disabled_regsets = xcalloc (1, info->num_regsets);
+    info->disabled_regsets = (char *) xcalloc (1, info->num_regsets);
   info->disabled_regsets[dr_offset] = 1;
 }
 
@@ -4566,7 +4566,7 @@ fetch_register (const struct usrregs_info *usrregs,
   size = ((register_size (regcache->tdesc, regno)
 	   + sizeof (PTRACE_XFER_TYPE) - 1)
 	  & -sizeof (PTRACE_XFER_TYPE));
-  buf = alloca (size);
+  buf = (char *) alloca (size);
 
   pid = lwpid_of (current_thread);
   for (i = 0; i < size; i += sizeof (PTRACE_XFER_TYPE))
@@ -4610,7 +4610,7 @@ store_register (const struct usrregs_info *usrregs,
   size = ((register_size (regcache->tdesc, regno)
 	   + sizeof (PTRACE_XFER_TYPE) - 1)
 	  & -sizeof (PTRACE_XFER_TYPE));
-  buf = alloca (size);
+  buf = (char *) alloca (size);
   memset (buf, 0, size);
 
   if (the_low_target.collect_ptrace_register)
@@ -5690,7 +5690,7 @@ get_dynamic (const int pid, const int is_elf64)
     return 0;
 
   gdb_assert (num_phdr < 100);  /* Basic sanity check.  */
-  phdr_buf = alloca (num_phdr * phdr_size);
+  phdr_buf = (unsigned char *) alloca (num_phdr * phdr_size);
 
   if (linux_read_memory (phdr_memaddr, phdr_buf, num_phdr * phdr_size))
     return 0;
@@ -5997,7 +5997,7 @@ linux_qxfer_libraries_svr4 (const char *annex, unsigned char *readbuf,
 	}
     }
 
-  document = xmalloc (allocated);
+  document = (char *) xmalloc (allocated);
   strcpy (document, "<library-list-svr4 version=\"1.0\"");
   p = document + strlen (document);
 
@@ -6058,7 +6058,7 @@ linux_qxfer_libraries_svr4 (const char *annex, unsigned char *readbuf,
 		  /* Expand to guarantee sufficient storage.  */
 		  uintptr_t document_len = p - document;
 
-		  document = xrealloc (document, 2 * allocated);
+		  document = (char *) xrealloc (document, 2 * allocated);
 		  allocated *= 2;
 		  p = document + document_len;
 		}

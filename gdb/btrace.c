@@ -1054,7 +1054,7 @@ check_xml_btrace_version (struct gdb_xml_parser *parser,
 			  const struct gdb_xml_element *element,
 			  void *user_data, VEC (gdb_xml_value_s) *attributes)
 {
-  const char *version = xml_find_attribute (attributes, "version")->value;
+  const char *version = (const char *) xml_find_attribute (attributes, "version")->value;
 
   if (strcmp (version, "1.0") != 0)
     gdb_xml_error (parser, _("Unsupported btrace version: \"%s\""), version);
@@ -1071,7 +1071,7 @@ parse_xml_btrace_block (struct gdb_xml_parser *parser,
   struct btrace_block *block;
   ULONGEST *begin, *end;
 
-  btrace = user_data;
+  btrace = (struct btrace_data *) user_data;
 
   switch (btrace->format)
     {
@@ -1087,8 +1087,8 @@ parse_xml_btrace_block (struct gdb_xml_parser *parser,
       gdb_xml_error (parser, _("Btrace format error."));
     }
 
-  begin = xml_find_attribute (attributes, "begin")->value;
-  end = xml_find_attribute (attributes, "end")->value;
+  begin = (long unsigned int *) xml_find_attribute (attributes, "begin")->value;
+  end = (long unsigned int *) xml_find_attribute (attributes, "end")->value;
 
   block = VEC_safe_push (btrace_block_s, btrace->variant.bts.blocks, NULL);
   block->begin = *begin;
@@ -1160,7 +1160,7 @@ parse_xml_btrace_conf_bts (struct gdb_xml_parser *parser,
   struct btrace_config *conf;
   struct gdb_xml_value *size;
 
-  conf = user_data;
+  conf = (struct btrace_config *) user_data;
   conf->format = BTRACE_FORMAT_BTS;
   conf->bts.size = 0;
 
@@ -1774,7 +1774,7 @@ btrace_is_empty (struct thread_info *tp)
 static void
 do_btrace_data_cleanup (void *arg)
 {
-  btrace_data_fini (arg);
+  btrace_data_fini ((struct btrace_data *) arg);
 }
 
 /* See btrace.h.  */

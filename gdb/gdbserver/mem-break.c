@@ -388,7 +388,7 @@ set_raw_breakpoint_at (enum raw_bkpt_type type, CORE_ADDR where, int size,
       return bp;
     }
 
-  bp = xcalloc (1, sizeof (*bp));
+  bp = (struct raw_breakpoint *) xcalloc (1, sizeof (*bp));
   bp->pc = where;
   bp->size = size;
   bp->refcount = 1;
@@ -511,7 +511,7 @@ delete_fast_tracepoint_jump (struct fast_tracepoint_jump *todel)
 		 pass the current shadow contents, because
 		 write_inferior_memory updates any shadow memory with
 		 what we pass here, and we want that to be a nop.  */
-	      buf = alloca (bp->length);
+	      buf = (unsigned char *) alloca (bp->length);
 	      memcpy (buf, fast_tracepoint_jump_shadow (bp), bp->length);
 	      ret = write_inferior_memory (bp->pc, buf, bp->length);
 	      if (ret != 0)
@@ -569,12 +569,12 @@ set_fast_tracepoint_jump (CORE_ADDR where,
   /* We don't, so create a new object.  Double the length, because the
      flexible array member holds both the jump insn, and the
      shadow.  */
-  jp = xcalloc (1, sizeof (*jp) + (length * 2));
+  jp = (struct fast_tracepoint_jump *) xcalloc (1, sizeof (*jp) + (length * 2));
   jp->pc = where;
   jp->length = length;
   memcpy (fast_tracepoint_jump_insn (jp), insn, length);
   jp->refcount = 1;
-  buf = alloca (length);
+  buf = (unsigned char *) alloca (length);
 
   /* Note that there can be trap breakpoints inserted in the same
      address range.  To access the original memory contents, we use
@@ -654,7 +654,7 @@ uninsert_fast_tracepoint_jumps_at (CORE_ADDR pc)
 	 pass the current shadow contents, because
 	 write_inferior_memory updates any shadow memory with what we
 	 pass here, and we want that to be a nop.  */
-      buf = alloca (jp->length);
+      buf = (unsigned char *) alloca (jp->length);
       memcpy (buf, fast_tracepoint_jump_shadow (jp), jp->length);
       err = write_inferior_memory (jp->pc, buf, jp->length);
       if (err != 0)
@@ -701,7 +701,7 @@ reinsert_fast_tracepoint_jumps_at (CORE_ADDR where)
      to pass the current shadow contents, because
      write_inferior_memory updates any shadow memory with what we pass
      here, and we want that to be a nop.  */
-  buf = alloca (jp->length);
+  buf = (unsigned char *) alloca (jp->length);
   memcpy (buf, fast_tracepoint_jump_shadow (jp), jp->length);
   err = write_inferior_memory (where, buf, jp->length);
   if (err != 0)
@@ -739,7 +739,7 @@ set_breakpoint (enum bkpt_type type, enum raw_bkpt_type raw_type,
       return NULL;
     }
 
-  bp = xcalloc (1, sizeof (struct breakpoint));
+  bp = (struct breakpoint *) xcalloc (1, sizeof (struct breakpoint));
   bp->type = type;
 
   bp->raw = raw;
@@ -1153,7 +1153,7 @@ add_condition_to_breakpoint (struct breakpoint *bp,
   struct point_cond_list *new_cond;
 
   /* Create new condition.  */
-  new_cond = xcalloc (1, sizeof (*new_cond));
+  new_cond = (struct point_cond_list *) xcalloc (1, sizeof (*new_cond));
   new_cond->cond = condition;
 
   /* Add condition to the list.  */
@@ -1251,7 +1251,7 @@ add_commands_to_breakpoint (struct breakpoint *bp,
   struct point_command_list *new_cmd;
 
   /* Create new command.  */
-  new_cmd = xcalloc (1, sizeof (*new_cmd));
+  new_cmd = (struct point_command_list *) xcalloc (1, sizeof (*new_cmd));
   new_cmd->cmd = commands;
   new_cmd->persistence = persist;
 
@@ -1653,7 +1653,7 @@ validate_inserted_breakpoint (struct raw_breakpoint *bp)
   gdb_assert (bp->inserted);
   gdb_assert (bp->raw_type == raw_bkpt_type_sw);
 
-  buf = alloca (breakpoint_len);
+  buf = (unsigned char *) alloca (breakpoint_len);
   err = (*the_target->read_memory) (bp->pc, buf, breakpoint_len);
   if (err || memcmp (buf, breakpoint_data, breakpoint_len) != 0)
     {

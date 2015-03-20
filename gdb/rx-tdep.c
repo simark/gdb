@@ -172,7 +172,7 @@ struct rx_get_opcode_byte_handle
 static int
 rx_get_opcode_byte (void *handle)
 {
-  struct rx_get_opcode_byte_handle *opcdata = handle;
+  struct rx_get_opcode_byte_handle *opcdata = (struct rx_get_opcode_byte_handle *) handle;
   int status;
   gdb_byte byte;
 
@@ -387,10 +387,10 @@ rx_analyze_frame_prologue (struct frame_info *this_frame,
       if (!func_start)
 	stop_addr = func_start;
 
-      rx_analyze_prologue (func_start, stop_addr, *this_prologue_cache);
+      rx_analyze_prologue (func_start, stop_addr, (struct rx_prologue *) *this_prologue_cache);
     }
 
-  return *this_prologue_cache;
+  return (struct rx_prologue *) *this_prologue_cache;
 }
 
 /* Given the next frame and a prologue cache, return this frame's
