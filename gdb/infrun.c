@@ -1907,8 +1907,7 @@ displaced_step_fixup (ptid_t event_ptid, enum gdb_signal signal)
 				"displaced: breakpoint is gone: %s, step(%d)\n",
 				target_pid_to_str (tp->ptid), step);
 
-	  target_resume (ptid, step, GDB_SIGNAL_0);
-	  tp->suspend.stop_signal = GDB_SIGNAL_0;
+	  resume (GDB_SIGNAL_0);
 
 	  /* This request was discarded.  See if there's any other
 	     thread waiting for its turn.  */
@@ -5775,8 +5774,7 @@ switch_back_to_stepped_thread (struct execution_control_state *ecs)
 					     stop_pc);
 
 	      resume_ptid = user_visible_resume_ptid (tp->control.stepping_command);
-	      do_target_resume (resume_ptid,
-				currently_stepping (tp), GDB_SIGNAL_0);
+	      do_target_resume (resume_ptid, 0, GDB_SIGNAL_0);
 	      prepare_to_wait (ecs);
 	    }
 	  else
