@@ -2173,6 +2173,25 @@ user_visible_resume_ptid (int step)
   return resume_ptid;
 }
 
+/* Return a ptid representing the set of threads that we will resume,
+   in the perspective of the target, assuming run control handling
+   does not require leaving some threads stopped (e.g., stepping past
+   breakpoint).  USER_STEP indicates whether we're about to start the
+   target for a stepping command.  */
+
+static ptid_t
+internal_resume_ptid (int user_step)
+{
+  /* In non-stop, we always control threads individually.  Note that
+     the target may always work in non-stop mode even with "set
+     non-stop off", in which case user_visible_resume_ptid could
+     return a wildcard ptid.  */
+  if (target_is_non_stop_p ())
+    return inferior_ptid;
+  else
+    return user_visible_resume_ptid (user_step);
+}
+
 /* Wrapper for target_resume, that handles infrun-specific
    bookkeeping.  */
 
@@ -2384,15 +2403,7 @@ resume (enum gdb_signal sig)
 	      insert_single_step_breakpoint (gdbarch, aspace, pc);
 	      insert_breakpoints ();
 
-	      /* In non-stop, we always control threads individually.
-		 Note that the target may always work in non-stop mode
-		 even with "set non-stop off", in which case
-		 user_visible_resume_ptid could return a wildcard
-		 ptid.  */
-	      if (target_is_non_stop_p ())
-		resume_ptid = inferior_ptid;
-	      else
-		resume_ptid = user_visible_resume_ptid (user_step);
+	      resume_ptid = internal_resume_ptid (user_step);
 	      do_target_resume (resume_ptid, 0, GDB_SIGNAL_0);
 	      discard_cleanups (old_cleanups);
 	      tp->resumed = 1;
@@ -2501,20 +2512,9 @@ resume (enum gdb_signal sig)
      use singlestep breakpoint.  */
   gdb_assert (!(thread_has_single_step_breakpoints_set (tp) && step));
 
-  /* Decide the set of threads to ask the target to resume.  Start
-     by assuming everything will be resumed, than narrow the set
-     by applying increasingly restricting conditions.  */
-  resume_ptid = user_visible_resume_ptid (user_step);
-
-  /* Maybe resume a single thread after all.  */
-  if (target_is_non_stop_p ())
-    {
-      /* If non-stop mode, threads are always controlled
-	 individually.  */
-      resume_ptid = inferior_ptid;
-    }
-  else if ((step || thread_has_single_step_breakpoints_set (tp))
-	   && tp->control.trap_expected)
+  /* Decide the set of threads to ask the target to resume.  */
+  if ((step || thread_has_single_step_breakpoints_set (tp))
+      && tp->control.trap_expected)
     {
       /* We're allowing a thread to run past a breakpoint it has
 	 hit, by single-stepping the thread with the breakpoint
@@ -2523,6 +2523,8 @@ resume (enum gdb_signal sig)
 	 breakpoint if allowed to run.  */
       resume_ptid = inferior_ptid;
     }
+  else
+    resume_ptid = internal_resume_ptid (user_step);
 
   if (execution_direction != EXEC_REVERSE
       && step && breakpoint_inserted_here_p (aspace, pc))
@@ -6833,10 +6835,7 @@ keep_going_stepped_thread (struct thread_info *tp)
 				     stop_pc);
 
       tp->resumed = 1;
-      if (target_is_non_stop_p ())
-	resume_ptid = inferior_ptid;
-      else
-	resume_ptid = user_visible_resume_ptid (tp->control.stepping_command);
+      resume_ptid = internal_resume_ptid (tp->control.stepping_command);
       do_target_resume (resume_ptid, 0, GDB_SIGNAL_0);
     }
   else
