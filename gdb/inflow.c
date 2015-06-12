@@ -196,7 +196,7 @@ show_interactive_mode (struct ui_file *file, int from_tty,
 static struct term_state *
 cur_term_state (void)
 {
-  return current_console->term_state;
+  return current_terminal->term_state;
 }
 
 /* Set the initial tty state that is to be inherited by new inferiors.  */
@@ -208,12 +208,12 @@ set_initial_gdb_ttystate (void)
     = serial_get_tty_state (cur_term_state ()->stdin_serial);
 }
 
-/* Does GDB have a terminal (on the current console's stdin)?  */
+/* Does GDB have a terminal (on the current terminal's stdin)?  */
 
 int
 gdb_has_a_terminal (void)
 {
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
   int fd;
 
   if (interactive_mode != AUTO_BOOLEAN_AUTO)
@@ -233,7 +233,7 @@ gdb_has_a_terminal (void)
 
       gdb_assert (ts->terminal_is_ours);
 
-      fd = fileno (current_console->instream);
+      fd = fileno (current_terminal->instream);
 #ifdef F_GETFL
       ts->our_terminal_info.tflags = fcntl (fd, F_GETFL, 0);
 #endif
@@ -277,7 +277,7 @@ child_terminal_init_with_pgrp (int pgrp)
 
   if (gdb_has_a_terminal ())
     {
-      struct term_state *ts = current_console->term_state;
+      struct term_state *ts = current_terminal->term_state;
 
       xfree (ts->inferior_terminal_info.ttystate);
       ts->inferior_terminal_info.ttystate
@@ -300,7 +300,7 @@ child_terminal_init_with_pgrp (int pgrp)
 void
 gdb_save_tty_state (void)
 {
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
 
   if (gdb_has_a_terminal ())
     {
@@ -332,7 +332,7 @@ child_terminal_inferior (struct target_ops *self)
   struct inferior *inf;
   struct terminal_info *tinfo;
 #endif
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
 
   if (!ts->terminal_is_ours)
     return;
@@ -350,7 +350,7 @@ child_terminal_inferior (struct target_ops *self)
       )
     {
       int result;
-      int fd = fileno (current_console->instream);
+      int fd = fileno (current_terminal->instream);
 
       gdb_assert (fd >= 0);
 
@@ -453,7 +453,7 @@ static void
 child_terminal_ours_1 (int output_only)
 {
   //  struct inferior *inf;
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
 
   if (ts->terminal_is_ours)
     return;
@@ -483,7 +483,7 @@ child_terminal_ours_1 (int output_only)
       void (*osigttou) () = NULL;
 #endif
       int result;
-      int fd = fileno (current_console->instream);
+      int fd = fileno (current_terminal->instream);
       struct terminal_info *tinfo;
 
       tinfo = &ts->inferior_terminal_info;
@@ -620,7 +620,7 @@ copy_terminal_info (struct inferior *to, struct inferior *from)
 {
 #if 0
   struct terminal_info *tinfo_to, *tinfo_from;
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
 
   tinfo_to = get_inflow_inferior_data (to);
   tinfo_from = get_inflow_inferior_data (from);
@@ -651,11 +651,11 @@ child_terminal_info (struct target_ops *self, const char *args, int from_tty)
 {
   //  struct inferior *inf;
   //  struct terminal_info *tinfo;
-  struct term_state *ts = current_console->term_state;
+  struct term_state *ts = current_terminal->term_state;
 
   if (!gdb_has_a_terminal ())
     {
-      printf_filtered (_("This GDB console does not control a terminal.\n"));
+      printf_filtered (_("This GDB terminal does not control a terminal.\n"));
       return;
     }
 
@@ -666,7 +666,7 @@ child_terminal_info (struct target_ops *self, const char *args, int from_tty)
       return;
     }
 
-  /// XXX should find the console associated with the inferior??
+  /// XXX should find the terminal associated with the inferior??
 #if 0
   if (ptid_equal (inferior_ptid, null_ptid))
     return;
@@ -976,11 +976,11 @@ gdb_setpgid (void)
    that we can guarantee stdin_serial is opened if there is
    a terminal.  */
 void
-initialize_stdin_serial (struct console *console)
+initialize_stdin_serial (struct terminal *terminal)
 {
-  struct term_state *ts = console->term_state;
+  struct term_state *ts = terminal->term_state;
 
-  ts->stdin_serial = serial_fdopen (fileno (console->instream));
+  ts->stdin_serial = serial_fdopen (fileno (terminal->instream));
 }
 
 void

@@ -185,26 +185,26 @@ tui_on_normal_stop (struct bpstats *bs, int print_frame)
 static void
 tui_on_sync_execution_done (void)
 {
-  struct console *prev_console = current_console;
-  struct console *console;
+  struct terminal *prev_terminal = current_terminal;
+  struct terminal *terminal;
   int ix;
 
   /* Save the current state.   */
-  switch_to_console (current_console);
+  switch_to_terminal (current_terminal);
 
-  for (ix = 0; VEC_iterate (console_ptr, consoles, ix, console); ++ix)
+  for (ix = 0; VEC_iterate (terminal_ptr, terminals, ix, terminal); ++ix)
     {
-      if (console->sync_execution
-	  && tui_interp_p (console->current_interpreter))
+      if (terminal->sync_execution
+	  && tui_interp_p (terminal->current_interpreter))
 	{
-	  switch_to_console (console);
+	  switch_to_terminal (terminal);
 
 	  async_enable_stdin ();
 	  display_gdb_prompt (NULL);
 	}
     }
 
-  switch_to_console (prev_console);
+  switch_to_terminal (prev_terminal);
 }
 
 /* Observer for the command_error notification.  */

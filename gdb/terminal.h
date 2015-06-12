@@ -19,7 +19,7 @@
 #if !defined (TERMINAL_H)
 #define TERMINAL_H 1
 
-struct console;
+struct terminal;
 struct term_state;
 
 /* If we're using autoconf, it will define HAVE_TERMIOS_H,
@@ -102,7 +102,7 @@ extern int gdb_setpgid (void);
 
 /* Set up a serial structure describing the terminal's standard
    input.  */
-extern void initialize_stdin_serial (struct console *console);
+extern void initialize_stdin_serial (struct terminal *terminal);
 
 extern int gdb_has_a_terminal (void);
 
@@ -114,21 +114,21 @@ extern void set_initial_gdb_ttystate (void);
    if we lack job control.  */
 extern int gdb_setpgid (void);
 
-extern struct console *main_console;
-extern struct console *current_console;
+extern struct terminal *main_terminal;
+extern struct terminal *current_terminal;
 
-extern FILE *console_outstream (struct console *console);
-extern FILE *console_errstream (struct console *console);
+extern FILE *terminal_outstream (struct terminal *terminal);
+extern FILE *terminal_errstream (struct terminal *terminal);
 
-extern void init_console (void);
+extern void init_terminal (void);
 
-extern void switch_to_console (struct console *console);
+extern void switch_to_terminal (struct terminal *terminal);
 
 struct term_state *new_term_state (void);
 
-struct console_readline_state;
+struct terminal_readline_state;
 
-struct console
+struct terminal
 {
   int input_fd;
   FILE *instream;
@@ -148,16 +148,14 @@ struct console
   int sync_execution;
 
   /* Readline-related things.  Private to most of GDB.  */
-  struct console_readline_state *rl;
+  struct terminal_readline_state *rl;
 
   struct term_state *term_state;
 };
 
-typedef struct console *console_ptr;
-DEF_VEC_P(console_ptr);
+typedef struct terminal *terminal_ptr;
+DEF_VEC_P(terminal_ptr);
 
-extern VEC(console_ptr) *consoles;
-
-extern struct console *current_console;
+extern VEC(terminal_ptr) *terminals;
 
 #endif /* !defined (TERMINAL_H) */

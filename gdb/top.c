@@ -1951,7 +1951,7 @@ gdb_init (char *argv0)
   initialize_inferiors ();
   initialize_current_architecture ();
   init_cli_cmds();
-  init_console ();
+  init_terminal ();
   init_main ();
 
   /* Take a snapshot of our tty state before readline/ncurses have had a chance

@@ -414,7 +414,7 @@ struct readline_input_state
   char *linebuffer_ptr;
 };
 
-struct console_readline_state
+struct terminal_readline_state
 {
   struct line_buffer line_buffer;
   int more_to_come;
@@ -435,19 +435,19 @@ struct console_readline_state
   rl_vcpfunc_t *rl_linefunc;
 };
 
-struct console *main_console;
-struct console *current_console;
+struct terminal *main_terminal;
+struct terminal *current_terminal;
 
 FILE *
-console_outstream (struct console *console)
+terminal_outstream (struct terminal *terminal)
 {
-  return console->outstream;
+  return terminal->outstream;
 }
 
 FILE *
-console_errstream (struct console *console)
+terminal_errstream (struct terminal *terminal)
 {
-  return console->errstream;
+  return terminal->errstream;
 }
 
 /* When there is an event ready on the stdin file desriptor, instead
@@ -457,9 +457,9 @@ console_errstream (struct console *console)
 void
 stdin_event_handler (int error, gdb_client_data client_data)
 {
-  struct console *console = (struct console *) client_data;
+  struct terminal *terminal = (struct terminal *) client_data;
 
-  switch_to_console (console);
+  switch_to_terminal (terminal);
 
   if (error)
     {
@@ -498,7 +498,7 @@ async_enable_stdin (void)
     }
 }
 
-/* Disable reads from stdin (the console) marking the command as
+/* Disable reads from stdin (the terminal) marking the command as
    synchronous.  */
 
 void
@@ -556,83 +556,83 @@ extern FILE *_rl_in_stream, *_rl_out_stream;
 extern rl_vcpfunc_t *rl_linefunc;
 
 void
-switch_to_console (struct console *console)
+switch_to_terminal (struct terminal *terminal)
 {
   /* Save.  */
-  current_console->current_interpreter = current_interpreter;
-  current_console->top_level_interpreter_ptr = top_level_interpreter_ptr;
+  current_terminal->current_interpreter = current_interpreter;
+  current_terminal->top_level_interpreter_ptr = top_level_interpreter_ptr;
 
-  current_console->input_fd = input_fd;
-  current_console->instream = instream;
-  current_console->out = gdb_stdout;
-  current_console->err = gdb_stderr;
-  current_console->log = gdb_stdlog;
+  current_terminal->input_fd = input_fd;
+  current_terminal->instream = instream;
+  current_terminal->out = gdb_stdout;
+  current_terminal->err = gdb_stderr;
+  current_terminal->log = gdb_stdlog;
 
-  current_console->current_uiout = current_uiout;
+  current_terminal->current_uiout = current_uiout;
 
-  current_console->rl->input_handler = input_handler;
-  current_console->rl->call_readline = call_readline;
-  current_console->rl->async_command_editing_p = async_command_editing_p;
-  current_console->rl->rl_linefunc = rl_linefunc;
-  rl_save_state (&current_console->rl->readline_state);
+  current_terminal->rl->input_handler = input_handler;
+  current_terminal->rl->call_readline = call_readline;
+  current_terminal->rl->async_command_editing_p = async_command_editing_p;
+  current_terminal->rl->rl_linefunc = rl_linefunc;
+  rl_save_state (&current_terminal->rl->readline_state);
 
-  current_console->sync_execution = sync_execution;
+  current_terminal->sync_execution = sync_execution;
 
   /* We're just saving the current state.  No need to switch it
      back.  */
-  if (current_console == console)
+  if (current_terminal == terminal)
     return;
 
   /* Restore.  */
-  input_fd = console->input_fd;
-  instream = console->instream;
-  gdb_stdout = console->out;
-  gdb_stderr = console->err;
-  gdb_stdlog = console->log;
+  input_fd = terminal->input_fd;
+  instream = terminal->instream;
+  gdb_stdout = terminal->out;
+  gdb_stderr = terminal->err;
+  gdb_stdlog = terminal->log;
 
-  current_interpreter = console->current_interpreter;
-  top_level_interpreter_ptr = console->top_level_interpreter_ptr;
-  current_uiout = console->current_uiout;
+  current_interpreter = terminal->current_interpreter;
+  top_level_interpreter_ptr = terminal->top_level_interpreter_ptr;
+  current_uiout = terminal->current_uiout;
 
-  input_handler = console->rl->input_handler;
-  call_readline = console->rl->call_readline;
-  async_command_editing_p = console->rl->async_command_editing_p;
+  input_handler = terminal->rl->input_handler;
+  call_readline = terminal->rl->call_readline;
+  async_command_editing_p = terminal->rl->async_command_editing_p;
 
-  sync_execution = console->sync_execution;
+  sync_execution = terminal->sync_execution;
 
-  rl_linefunc = console->rl->rl_linefunc;
-  rl_restore_state (&console->rl->readline_state);
+  rl_linefunc = terminal->rl->rl_linefunc;
+  rl_restore_state (&terminal->rl->readline_state);
 
   /* Tell readline to use the same input stream that gdb uses.  */
   rl_instream = instream;
-  rl_outstream = console->outstream;
+  rl_outstream = terminal->outstream;
 
   /* Must do these directly instead of waiting for
      rl_callback_handler_install to them up on next prompt display,
      which would be too late -- we need to echo the just-pressed key
      to _rl_out_stream.  */
   _rl_in_stream = instream;
-  _rl_out_stream = console->outstream;
+  _rl_out_stream = terminal->outstream;
 
   gdb_assert (instream == rl_instream);
 
-  current_console = console;
+  current_terminal = terminal;
 }
 
-VEC(console_ptr) *consoles;
+VEC(terminal_ptr) *terminals;
 
 #if 0
-static struct console *
-get_console (int fd)
+static struct terminal *
+get_terminal (int fd)
 {
-  struct console *c;
+  struct terminal *c;
   int ix;
 
-  for (ix = 0; VEC_iterate (console_p, consoles, ix, c); ++ix)
+  for (ix = 0; VEC_iterate (terminal_p, terminals, ix, c); ++ix)
     if (c->input_fd == fd)
       return c;
 
-  gdb_assert_not_reached ("unknown console descriptor\n");
+  gdb_assert_not_reached ("unknown terminal descriptor\n");
 }
 #endif
 
@@ -648,10 +648,10 @@ get_console (int fd)
 static void
 command_line_handler (char *rl)
 {
-  struct console *console = current_console;
-  struct line_buffer *line_buffer = &console->rl->line_buffer;
+  struct terminal *terminal = current_terminal;
+  struct line_buffer *line_buffer = &terminal->rl->line_buffer;
   struct readline_input_state *readline_input_state
-    = &console->rl->readline_input_state;
+    = &terminal->rl->readline_input_state;
   char *p;
   char *p1;
   char *nline;
@@ -673,12 +673,12 @@ command_line_handler (char *rl)
 
   p = line_buffer->buffer;
 
-  if (console->rl->more_to_come)
+  if (terminal->rl->more_to_come)
     {
       strcpy (line_buffer->buffer, readline_input_state->linebuffer);
       p = readline_input_state->linebuffer_ptr;
       xfree (readline_input_state->linebuffer);
-      console->rl->more_to_come = 0;
+      terminal->rl->more_to_come = 0;
     }
 
 #ifdef STOP_SIGNAL
@@ -729,7 +729,7 @@ command_line_handler (char *rl)
       /* We will not invoke a execute_command if there is more
 	 input expected to complete the command.  So, we need to
 	 print an empty prompt here.  */
-      console->rl->more_to_come = 1;
+      terminal->rl->more_to_come = 1;
       display_gdb_prompt ("");
       return;
     }
@@ -827,7 +827,7 @@ command_line_handler (char *rl)
 	  saved_command_line_size = line_buffer->length;
 	}
       strcpy (saved_command_line, line_buffer->buffer);
-      if (!console->rl->more_to_come)
+      if (!terminal->rl->more_to_come)
 	{
 	  command_handler (saved_command_line);
 	  display_gdb_prompt (0);
@@ -1169,8 +1169,9 @@ set_async_editing_command (char *args, int from_tty,
   change_line_handler ();
 }
 
-static struct console *new_console (FILE *instream,
-				    FILE *outstream, FILE *errstream);
+static struct terminal *new_terminal (FILE *instream,
+				      FILE *outstream,
+				      FILE *errstream);
 
 /* A few readline variables are default initialized, and there's no
    way to set/reset them back to the defaults (e.g., to set
@@ -1180,24 +1181,24 @@ static struct console *new_console (FILE *instream,
 static struct readline_state initial_readline_state;
 
 void
-init_console (void)
+init_terminal (void)
 {
-  struct console *console;
+  struct terminal *terminal;
 
-  gdb_assert (current_console == NULL);
-  gdb_assert (main_console == NULL);
+  gdb_assert (current_terminal == NULL);
+  gdb_assert (main_terminal == NULL);
 
-  console = new_console (instream, stdout, stderr);
+  terminal = new_terminal (instream, stdout, stderr);
 
 #if 0
-  console->out = gdb_stdout;
-  console->err = gdb_stderr;
+  terminal->out = gdb_stdout;
+  terminal->err = gdb_stderr;
 #endif
 
   rl_save_state (&initial_readline_state);
 
-  current_console = console;
-  main_console = console;
+  current_terminal = terminal;
+  main_terminal = terminal;
 }
 
 /* Set things up for readline to be invoked via the alternate
@@ -1212,9 +1213,9 @@ gdb_setup_readline (void)
      mess it up here.  The sync stuff should really go away over
      time.  */
   if (!batch_silent)
-    gdb_stdout = stdio_fileopen (current_console->outstream);
+    gdb_stdout = stdio_fileopen (current_terminal->outstream);
   /* FIXME */
-  gdb_stderr = stdio_fileopen (current_console->errstream);
+  gdb_stderr = stdio_fileopen (current_terminal->errstream);
   //  gdb_stderr = stderr_fileopen ();
   gdb_stdlog = gdb_stderr;  /* for moment */
   gdb_stdtarg = gdb_stderr; /* for moment */
@@ -1249,7 +1250,7 @@ gdb_setup_readline (void)
 
   /* Get a file descriptor for the input stream, so that we can
      register it with the event loop.  */
-  input_fd = fileno (current_console->instream);
+  input_fd = fileno (current_terminal->instream);
 
   /* Now we need to create the event sources for the input file
      descriptor.  */
@@ -1258,7 +1259,7 @@ gdb_setup_readline (void)
      target program (inferior), but that must be registered only when
      it actually exists (I.e. after we say 'run' or after we connect
      to a remote target.  */
-  add_file_handler (input_fd, stdin_event_handler, current_console);
+  add_file_handler (input_fd, stdin_event_handler, current_terminal);
 }
 
 /* Disable command input through the standard CLI channels.  Used in
@@ -1284,7 +1285,7 @@ gdb_disable_readline (void)
   delete_file_handler (input_fd);
 }
 
-/* Scratch area where 'set console-tty' will store user-provided value.
+/* Scratch area where 'set terminal-tty' will store user-provided value.
    We'll immediate copy it into per-interpreter storage.  */
 
 static char *console_tty_scratch;
@@ -1310,34 +1311,34 @@ show_console_tty_command (struct ui_file *file, int from_tty,
 /* Non-zero means we have been called at least once before. */
 extern int rl_initialized;
 
-static struct console *
-new_console (FILE *instream, FILE *outstream, FILE *errstream)
+static struct terminal *
+new_terminal (FILE *instream, FILE *outstream, FILE *errstream)
 {
-  struct console *console;
+  struct terminal *terminal;
 
-  console = xcalloc (1, sizeof *console);
+  terminal = xcalloc (1, sizeof *terminal);
 
-  console->input_fd = -1;
-  console->instream = instream;
-  console->outstream = outstream;
-  console->errstream = errstream;
+  terminal->input_fd = -1;
+  terminal->instream = instream;
+  terminal->outstream = outstream;
+  terminal->errstream = errstream;
 
-  console->rl = XCNEW (struct console_readline_state);
-  console->rl->readline_state = initial_readline_state;
+  terminal->rl = XCNEW (struct terminal_readline_state);
+  terminal->rl->readline_state = initial_readline_state;
 
-  console->term_state = new_term_state ();
-  initialize_stdin_serial (console);
+  terminal->term_state = new_term_state ();
+  initialize_stdin_serial (terminal);
 
-  VEC_safe_push (console_ptr, consoles, console);
+  VEC_safe_push (terminal_ptr, terminals, terminal);
 
-  return console;
+  return terminal;
 }
 
 static void
 new_console_command (char *args, int from_tty)
 {
-  struct console *prev_console = current_console;
-  struct console *console;
+  struct terminal *prev_terminal = current_terminal;
+  struct terminal *terminal;
   struct interp *interp;
   FILE *stream;
   int tty;
@@ -1349,15 +1350,15 @@ new_console_command (char *args, int from_tty)
 
   stream = fdopen (tty, "w+");
 
-  console = new_console (stream, stream, stream);
+  terminal = new_terminal (stream, stream, stream);
 
-  /* FIXME: is this still needed?  we don't do it in init_console.  */
-  console->out = stdio_fileopen (stream);
+  /* FIXME: is this still needed?  we don't do it in init_terminal.  */
+  terminal->out = stdio_fileopen (stream);
   /* FIXME: misses disabling buffering.  */
-  console->err = stdio_fileopen (stream);
-  //  console->log = console->err;
+  terminal->err = stdio_fileopen (stream);
+  //  terminal->log = terminal->err;
 
-  switch_to_console (console);
+  switch_to_terminal (terminal);
 
   /* This isn't swapped, but we need to clear it so that the new
      readline instance initializes.  */
@@ -1373,7 +1374,7 @@ new_console_command (char *args, int from_tty)
 
   /* Switch back to the previous readline, before returning to it
      (we're inside a readline callback.)  */
-  switch_to_console (prev_console);
+  switch_to_terminal (prev_terminal);
   printf_unfiltered ("New GDB console allocated\n");
 }
 
@@ -1385,15 +1386,15 @@ _initialize_event_top (void)
   struct cmd_list_element *c = NULL;
 
   /* Add the filename of the terminal connected to inferior I/O.  */
-  add_setshow_filename_cmd ("console-tty", class_run,
+  add_setshow_filename_cmd ("terminal-tty", class_run,
 			    &console_tty_scratch, _("\
 Set terminal used by GDB's CLI."), _("\
 Show terminal for GDB's CLI."), _("\
-Usage: set console-tty /dev/pts/1"),
+Usage: set terminal-tty /dev/pts/1"),
 			    set_console_tty_command,
 			    show_console_tty_command,
 			    &setlist, &showlist);
 
-  add_com ("new-console", class_support, new_console_command,
+  add_com ("new-terminal", class_support, new_console_command,
 	   _("Create new console."));
 }

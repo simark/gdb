@@ -572,8 +572,8 @@ tui_initialize_io (void)
 #endif
 
   /* Create tui output streams.  */
-  tui_io ()->tui_stdout = tui_fileopen (console_outstream (current_console));
-  tui_io ()->tui_stderr = tui_fileopen (console_errstream (current_console));
+  tui_io ()->tui_stdout = tui_fileopen (terminal_outstream (current_terminal));
+  tui_io ()->tui_stderr = tui_fileopen (terminal_errstream (current_terminal));
   tui_io ()->tui_out = tui_out_new (tui_io ()->tui_stdout);
 
   /* Create the default UI.  */
@@ -601,7 +601,7 @@ tui_initialize_io (void)
 #endif
   add_file_handler (tui_io ()->tui_readline_pipe[0], tui_readline_output, 0);
 #else
-  tui_rl_outstream = console_outstream (current_console);
+  tui_rl_outstream = terminal_outstream (current_terminal);
 #endif
 }
 
