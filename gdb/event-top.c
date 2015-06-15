@@ -1381,6 +1381,6 @@ Usage: set terminal-tty /dev/pts/1"),
 			    show_console_tty_command,
 			    &setlist, &showlist);
 
-  add_com ("new-terminal", class_support, new_console_command,
+  add_com ("new-console", class_support, new_console_command,
 	   _("Create new console."));
 }
