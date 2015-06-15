@@ -292,6 +292,11 @@ mi_execute_command_wrapper (const char *cmd)
 static void
 mi_on_sync_execution_done (void)
 {
+  struct interp *interp = current_interpreter;
+
+  if (interp->terminal->sync_execution)
+    async_enable_stdin ();
+
   /* MI generally prints a prompt after a command, indicating it's
      ready for further input.  However, due to an historical wart, if
      MI async, and a (CLI) synchronous command was issued, then we
