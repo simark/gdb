@@ -431,6 +431,7 @@ struct console_readline_state
   struct readline_state readline_state;
 };
 
+struct console *main_console;
 struct console *current_console;
 
 FILE *
@@ -1175,6 +1176,7 @@ init_console (void)
   struct console *console;
 
   gdb_assert (current_console == NULL);
+  gdb_assert (main_console == NULL);
 
   console = new_console (instream, stdout, stderr);
 
@@ -1186,6 +1188,7 @@ init_console (void)
   rl_save_state (&initial_readline_state);
 
   current_console = console;
+  main_console = console;
 }
 
 /* Set things up for readline to be invoked via the alternate
@@ -1314,6 +1317,7 @@ new_console (FILE *instream, FILE *outstream, FILE *errstream)
   console->rl->readline_state = initial_readline_state;
 
   console->term_state = new_term_state ();
+  initialize_stdin_serial (console);
 
   VEC_safe_push (console_ptr, consoles, console);
 

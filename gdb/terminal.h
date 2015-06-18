@@ -100,8 +100,9 @@ extern pid_t create_tty_session (void);
    we lack job control.  */
 extern int gdb_setpgid (void);
 
-/* Set up a serial structure describing standard input.  In inflow.c.  */
-extern void initialize_stdin_serial (void);
+/* Set up a serial structure describing the terminal's standard
+   input.  */
+extern void initialize_stdin_serial (struct console *console);
 
 extern int gdb_has_a_terminal (void);
 
@@ -113,6 +114,7 @@ extern void set_initial_gdb_ttystate (void);
    if we lack job control.  */
 extern int gdb_setpgid (void);
 
+extern struct console *main_console;
 extern struct console *current_console;
 
 extern FILE *console_outstream (struct console *console);
