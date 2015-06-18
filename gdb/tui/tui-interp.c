@@ -136,6 +136,9 @@ tui_on_normal_stop (struct bpstats *bs, int print_frame)
   if (!print_frame)
     return;
 
+  /* Broadcast asynchronous stops to all consoles.  If we just
+     finished a step, print this to the console if it was the console
+     that started the step in the first place.  */
   ALL_TUI_INTERPS (interp)
     {
       struct thread_info *tp = inferior_thread ();
@@ -143,9 +146,8 @@ tui_on_normal_stop (struct bpstats *bs, int print_frame)
       if ((!tp->control.stop_step
 	   && !tp->control.proceed_to_finish)
 	  || (tp->control.command_interp != NULL
-	      && tp->control.command_interp != top_level_interpreter ()))
+	      && tp->control.command_interp == interp))
 	{
-	  struct mi_interp *mi = top_level_interpreter_data ();
 	  struct target_waitstatus last;
 	  ptid_t last_ptid;
 	  struct cleanup *old_chain;

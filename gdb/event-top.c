@@ -443,6 +443,7 @@ struct console
   struct readline_state readline_state;
 
   struct interp *current_interpreter;
+  struct interp *top_level_interpreter_ptr;
 };
 
 struct console *current_console;
@@ -571,6 +572,7 @@ switch_to_console (struct console *console)
 
   /* Save.  */
   current_console->current_interpreter = current_interpreter;
+  current_console->top_level_interpreter_ptr = top_level_interpreter_ptr;
   rl_save_state (&current_console->readline_state);
 
   current_console->input_fd = input_fd;
@@ -593,6 +595,7 @@ switch_to_console (struct console *console)
   gdb_stdlog = console->log;
 
   current_interpreter = console->current_interpreter;
+  top_level_interpreter_ptr = console->top_level_interpreter_ptr;
   current_uiout = console->current_uiout;
 
   input_handler = console->input_handler;
