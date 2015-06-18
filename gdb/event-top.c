@@ -1359,6 +1359,7 @@ new_console_command (char *args, int from_tty)
 
   //  interp = interp_create (INTERP_CONSOLE);
   interp = interp_create (INTERP_TUI);
+  interp_add (interp);
   interp_set (interp, 0);
 
   printf_unfiltered ("Hello from new GDB console\n");
