@@ -118,51 +118,64 @@ tui_on_no_history (void)
 
 #include "gdbthread.h"
 
-/* Cleanup that restores a previous current uiout.  */
 
-static void
-restore_current_uiout_cleanup (void *arg)
+extern int should_print_stop_to_console (struct interp *interp,
+					 struct thread_info *tp);
+
+int
+should_print_stop_to_console (struct interp *interp,
+			      struct thread_info *tp)
 {
-  struct ui_out *saved_uiout = arg;
+  /* Breakpoint hits should always be mirrored to the console.
+     Deciding what to mirror to the console wrt to breakpoints and
+     random stops gets messy real fast.  E.g., say "s" trips on a
+     breakpoint.  We'd clearly want to mirror the event to the console
+     in this case.  But what about more complicated cases like "s&;
+     thread n; s&", and one of those steps spawning a new thread, and
+     that thread hitting a breakpoint?  It's impossible in general to
+     track whether the thread had any relation to the commands that
+     had been executed.  So we just simplify and always mirror
+     breakpoints and random events to the console.
 
-  current_uiout = saved_uiout;
+     FIXME comment. XXXXXXXX
+
+     Also, CLI execution commands (-interpreter-exec console "next",
+     for example) in async mode have the opposite issue as described
+     in the "then" branch above -- normal_stop has already printed
+     frame information to MI uiout, but nothing has printed the same
+     information to the CLI channel.  We should print the source line
+     to the console when stepping or other similar commands, iff the
+     step was started by a console command (but not if it was started
+     with -exec-step or similar).  */
+  if ((!tp->control.stop_step
+       && !tp->control.proceed_to_finish))
+    return 1;
+
+  if (tp->control.command_interp != NULL
+       && tp->control.command_interp == interp)
+    return 1;
+
+  return 0;
 }
 
 static void
 tui_on_normal_stop (struct bpstats *bs, int print_frame)
 {
   struct interp *interp;
+  struct thread_info *tp;
 
   if (!print_frame)
     return;
+
+  tp = inferior_thread ();
 
   /* Broadcast asynchronous stops to all consoles.  If we just
      finished a step, print this to the console if it was the console
      that started the step in the first place.  */
   ALL_TUI_INTERPS (interp)
     {
-      struct thread_info *tp = inferior_thread ();
-
-      if ((!tp->control.stop_step
-	   && !tp->control.proceed_to_finish)
-	  || (tp->control.command_interp != NULL
-	      && tp->control.command_interp == interp))
-	{
-	  struct target_waitstatus last;
-	  ptid_t last_ptid;
-	  struct cleanup *old_chain;
-
-	  /* Set the current uiout to the interpreter's uiout
-	     temporarily.  */
-	  old_chain = make_cleanup (restore_current_uiout_cleanup,
-				    current_uiout);
-	  current_uiout = interp_ui_out (interp);
-
-	  get_last_target_status (&last_ptid, &last);
-	  print_stop_event (&last);
-
-	  do_cleanups (old_chain);
-	}
+      if (should_print_stop_to_console (interp, tp))
+	print_stop_event (interp_ui_out (interp));
     }
 }
 

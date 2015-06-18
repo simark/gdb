@@ -6487,8 +6487,8 @@ print_no_history_reason (struct ui_out *uiout)
    bpstat_print contains the logic deciding in detail what to print,
    based on the event(s) that just occurred.  */
 
-void
-print_stop_event (struct target_waitstatus *ws)
+static void
+print_stop_event_1 (struct target_waitstatus *ws)
 {
   int bpstat_ret;
   int source_flag;
@@ -6542,6 +6542,35 @@ print_stop_event (struct target_waitstatus *ws)
 
   /* Display the auto-display expressions.  */
   do_displays ();
+}
+
+/* Cleanup that restores a previous current uiout.  */
+
+static void
+restore_current_uiout_cleanup (void *arg)
+{
+  struct ui_out *saved_uiout = arg;
+
+  current_uiout = saved_uiout;
+}
+
+void
+print_stop_event (struct ui_out *uiout)
+{
+  struct target_waitstatus last;
+  ptid_t last_ptid;
+  struct cleanup *old_chain;
+
+  get_last_target_status (&last_ptid, &last);
+
+  /* Set the current uiout to the interpreter's uiout
+     temporarily.  */
+  old_chain = make_cleanup (restore_current_uiout_cleanup, current_uiout);
+  current_uiout = uiout;
+
+  print_stop_event_1 (&last);
+
+  do_cleanups (old_chain);
 }
 
 /* Here to return control to GDB when the inferior stops for real.
@@ -6699,11 +6728,13 @@ normal_stop (void)
     {
       select_frame (get_current_frame ());
 
+#if 0
       /* If --batch-silent is enabled then there's no need to print the current
 	 source location, and to try risks causing an error message about
 	 missing source files.  */
       if (stop_print_frame && !batch_silent)
 	print_stop_event (&last);
+#endif
     }
 
   if (stop_stack_dummy == STOP_STACK_DUMMY)
@@ -6742,15 +6773,14 @@ done:
        run at all.  The return value of the call is handled by the
        expression evaluator, through call_function_by_hand.  */
 
-  if (!target_has_execution
-      || last.kind == TARGET_WAITKIND_SIGNALLED
-      || last.kind == TARGET_WAITKIND_EXITED
-      || last.kind == TARGET_WAITKIND_NO_RESUMED
-      || (!(inferior_thread ()->step_multi
-	    && inferior_thread ()->control.stop_step)
-	  && !(inferior_thread ()->control.stop_bpstat
-	       && inferior_thread ()->control.proceed_to_finish)
-	  && !inferior_thread ()->control.in_infcall))
+  /* Notify observers if we finished a "step"-like command, etc.  */
+  if (!batch_silent
+      && !(target_has_execution
+	   && ((inferior_thread ()->step_multi
+		&& inferior_thread ()->control.stop_step)
+	       || (inferior_thread ()->control.stop_bpstat
+		   && inferior_thread ()->control.proceed_to_finish)
+	       || inferior_thread ()->control.in_infcall)))
     {
       if (!ptid_equal (inferior_ptid, null_ptid))
 	observer_notify_normal_stop (inferior_thread ()->control.stop_bpstat,

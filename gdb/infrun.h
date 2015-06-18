@@ -148,7 +148,7 @@ extern void print_exited_reason (struct ui_out *uiout, int exitstatus);
    inferior has stopped.  */
 extern void print_no_history_reason (struct ui_out *uiout);
 
-extern void print_stop_event (struct target_waitstatus *ws);
+extern void print_stop_event (struct ui_out *uiout);
 
 extern int signal_stop_state (int);
 
