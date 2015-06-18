@@ -116,6 +116,54 @@ tui_on_no_history (void)
     print_no_history_reason (interp_ui_out (interp));
 }
 
+#include "gdbthread.h"
+
+/* Cleanup that restores a previous current uiout.  */
+
+static void
+restore_current_uiout_cleanup (void *arg)
+{
+  struct ui_out *saved_uiout = arg;
+
+  current_uiout = saved_uiout;
+}
+
+static void
+tui_on_normal_stop (struct bpstats *bs, int print_frame)
+{
+  struct interp *interp;
+
+  if (!print_frame)
+    return;
+
+  ALL_TUI_INTERPS (interp)
+    {
+      struct thread_info *tp = inferior_thread ();
+
+      if ((!tp->control.stop_step
+	   && !tp->control.proceed_to_finish)
+	  || (tp->control.command_interp != NULL
+	      && tp->control.command_interp != top_level_interpreter ()))
+	{
+	  struct mi_interp *mi = top_level_interpreter_data ();
+	  struct target_waitstatus last;
+	  ptid_t last_ptid;
+	  struct cleanup *old_chain;
+
+	  /* Set the current uiout to the interpreter's uiout
+	     temporarily.  */
+	  old_chain = make_cleanup (restore_current_uiout_cleanup,
+				    current_uiout);
+	  current_uiout = interp_ui_out (interp);
+
+	  get_last_target_status (&last_ptid, &last);
+	  print_stop_event (&last);
+
+	  do_cleanups (old_chain);
+	}
+    }
+}
+
 /* Observer for the sync_execution_done notification.  */
 
 static void
@@ -274,4 +322,5 @@ _initialize_tui_interp (void)
   observer_attach_no_history (tui_on_no_history);
   observer_attach_sync_execution_done (tui_on_sync_execution_done);
   observer_attach_command_error (tui_on_command_error);
+  observer_attach_normal_stop (tui_on_normal_stop);
 }
