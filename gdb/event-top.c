@@ -757,7 +757,7 @@ command_line_handler (char *rl)
     }
 
   /* Do history expansion if that is wished.  */
-  if (history_expansion_p && instream == stdin
+  if (history_expansion_p /* && instream == stdin */
       && ISATTY (instream))
     {
       char *history_value;
@@ -1174,6 +1174,13 @@ set_async_editing_command (char *args, int from_tty,
 static struct console *new_console (FILE *instream,
 				    FILE *outstream, FILE *errstream);
 
+/* A few readline variables are default initialized, and there's no
+   way to set/reset them back to the defaults (e.g., to set
+   rl_editing_mode to emacs_mode), which we need to do for new
+   heap-allocated readline instances.  We copy the default state here
+   early, before readline has a chance to read the inputrc files.  */
+static struct readline_state initial_readline_state;
+
 void
 init_console (void)
 {
@@ -1187,6 +1194,8 @@ init_console (void)
   console->out = gdb_stdout;
   console->err = gdb_stderr;
 #endif
+
+  rl_save_state (&initial_readline_state);
 
   current_console = console;
 }
@@ -1301,9 +1310,6 @@ show_console_tty_command (struct ui_file *file, int from_tty,
 /* Non-zero means we have been called at least once before. */
 extern int rl_initialized;
 
-/* Supposedly private.  */
-extern Keymap _rl_keymap;
-
 static struct console *
 new_console (FILE *instream, FILE *outstream, FILE *errstream)
 {
@@ -1315,6 +1321,8 @@ new_console (FILE *instream, FILE *outstream, FILE *errstream)
   console->instream = instream;
   console->outstream = outstream;
   console->errstream = errstream;
+
+  console->readline_state = initial_readline_state;
 
   return console;
 }
@@ -1337,6 +1345,7 @@ new_console_command (char *args, int from_tty)
 
   console = new_console (stream, stream, stream);
 
+  /* FIXME: is this still needed?  we don't do it in init_console.  */
   console->out = stdio_fileopen (stream);
   /* FIXME: misses disabling buffering.  */
   console->err = stdio_fileopen (stream);
@@ -1348,19 +1357,9 @@ new_console_command (char *args, int from_tty)
      readline instance initializes.  */
   rl_initialized = 0;
 
-  /* This is default initialized in readline, but if we just swapped
-     in a new heap allocated readline, then it's now NULL.  */
-  _rl_keymap = emacs_standard_keymap;
-
   //  interp = interp_create (INTERP_CONSOLE);
   interp = interp_create (INTERP_TUI);
   interp_set (interp, 0);
-
-  /* Make sure Readline has initialized its terminal settings.  XX Do we
-     still need this?  */
-  //  rl_reset_terminal (NULL);
-
-  //  add_file_handler (tty, stdin_event_handler, console);
 
   printf_unfiltered ("Hello from new GDB console\n");
   display_gdb_prompt (NULL);
