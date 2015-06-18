@@ -1167,9 +1167,9 @@ set_async_editing_command (char *args, int from_tty,
   change_line_handler ();
 }
 
-static struct terminal *new_terminal (FILE *instream,
-				      FILE *outstream,
-				      FILE *errstream);
+static struct terminal *new_terminal_1 (FILE *instream,
+					FILE *outstream,
+					FILE *errstream);
 
 /* A few readline variables are default initialized, and there's no
    way to set/reset them back to the defaults (e.g., to set
@@ -1188,7 +1188,7 @@ init_terminal (void)
   gdb_assert (current_terminal == NULL);
   gdb_assert (main_terminal == NULL);
 
-  terminal = new_terminal (stdin, stdout, stderr);
+  terminal = new_terminal_1 (stdin, stdout, stderr);
 
 #if 0
   terminal->out = gdb_stdout;
@@ -1293,11 +1293,8 @@ show_console_tty_command (struct ui_file *file, int from_tty,
 		    console_tty_scratch);
 }
 
-/* Non-zero means we have been called at least once before. */
-extern int rl_initialized;
-
 static struct terminal *
-new_terminal (FILE *instream, FILE *outstream, FILE *errstream)
+new_terminal_1 (FILE *instream, FILE *outstream, FILE *errstream)
 {
   struct terminal *terminal;
   // FIXME: can we really assume current realine users zero memory?
@@ -1324,10 +1321,19 @@ new_terminal (FILE *instream, FILE *outstream, FILE *errstream)
   rl_restore_state (&prev_readline_state);
 
   terminal->term_state = new_term_state ();
-  initialize_stdin_serial (terminal);
 
   VEC_safe_push (terminal_ptr, terminals, terminal);
 
+  return terminal;
+}
+
+static struct terminal *
+new_terminal (FILE *instream, FILE *outstream, FILE *errstream)
+{
+  struct terminal *terminal;
+
+  terminal = new_terminal_1 (instream, outstream, errstream);
+  initialize_stdin_serial (terminal);
   return terminal;
 }
 
@@ -1357,7 +1363,13 @@ new_console_command (char *args, int from_tty)
 
   switch_to_terminal (terminal);
 
+  /* Must set this already, do that init_page_info has readline query
+     the correct terminal.  */
+  rl_instream = stream;
+  rl_outstream = stream;
+
   init_readline ();
+  init_page_info ();
 
   //  interp = interp_create (INTERP_CONSOLE);
   interp = interp_create (INTERP_TUI, terminal);
