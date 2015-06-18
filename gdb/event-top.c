@@ -143,20 +143,6 @@ static struct async_signal_handler *sigtstp_token;
 #endif
 static struct async_signal_handler *async_sigterm_token;
 
-/* Structure to save a partially entered command.  This is used when
-   the user types '\' at the end of a command line.  This is necessary
-   because each line of input is handled by a different call to
-   command_line_handler, and normally there is no state retained
-   between different calls.  */
-static int more_to_come = 0;
-
-struct readline_input_state
-  {
-    char *linebuffer;
-    char *linebuffer_ptr;
-  }
-readline_input_state;
-
 /* This hook is called by rl_callback_read_char_wrapper after each
    character is processed.  */
 void (*after_char_processing_hook) (void);
@@ -499,6 +485,44 @@ command_handler (char *command)
   do_cleanups (stat_chain);
 }
 
+struct line_buffer
+{
+  char *buffer;
+  unsigned length;
+};
+
+/* Structure to save a partially entered command.  This is used when
+   the user types '\' at the end of a command line.  This is necessary
+   because each line of input is handled by a different call to
+   command_line_handler, and normally there is no state retained
+   between different calls.  */
+struct readline_input_state
+{
+  char *linebuffer;
+  char *linebuffer_ptr;
+};
+
+struct console
+{
+  int tty;
+
+  struct line_buffer line_buffer;
+
+  int more_to_come;
+
+  struct readline_input_state readline_input_state;
+};
+
+static struct console main_console;
+
+static struct console *
+get_console (int fd)
+{
+  /* The plan is to look up the console for rl_instream.  For now,
+     there's only one.  */
+  return &main_console;
+}
+
 /* Handle a complete line of input.  This is called by the callback
    mechanism within the readline library.  Deal with incomplete
    commands as well, by saving the partial input in a global
@@ -511,8 +535,10 @@ command_handler (char *command)
 static void
 command_line_handler (char *rl)
 {
-  static char *linebuffer = 0;
-  static unsigned linelength = 0;
+  struct console *console = get_console (input_fd);
+  struct line_buffer *line_buffer = &console->line_buffer;
+  struct readline_input_state *readline_input_state
+    = &console->readline_input_state;
   char *p;
   char *p1;
   char *nline;
@@ -525,21 +551,21 @@ command_line_handler (char *rl)
       printf_unfiltered (("\n"));
     }
 
-  if (linebuffer == 0)
+  if (line_buffer->buffer == NULL)
     {
-      linelength = 80;
-      linebuffer = (char *) xmalloc (linelength);
-      linebuffer[0] = '\0';
+      line_buffer->length = 80;
+      line_buffer->buffer = (char *) xmalloc (line_buffer->length);
+      line_buffer->buffer[0] = '\0';
     }
 
-  p = linebuffer;
+  p = line_buffer->buffer;
 
-  if (more_to_come)
+  if (console->more_to_come)
     {
-      strcpy (linebuffer, readline_input_state.linebuffer);
-      p = readline_input_state.linebuffer_ptr;
-      xfree (readline_input_state.linebuffer);
-      more_to_come = 0;
+      strcpy (line_buffer->buffer, readline_input_state->linebuffer);
+      p = readline_input_state->linebuffer_ptr;
+      xfree (readline_input_state->linebuffer);
+      console->more_to_come = 0;
     }
 
 #ifdef STOP_SIGNAL
@@ -564,12 +590,12 @@ command_line_handler (char *rl)
       command_handler (0);
       return;			/* Lint.  */
     }
-  if (strlen (rl) + 1 + (p - linebuffer) > linelength)
+  if (strlen (rl) + 1 + (p - line_buffer->buffer) > line_buffer->length)
     {
-      linelength = strlen (rl) + 1 + (p - linebuffer);
-      nline = (char *) xrealloc (linebuffer, linelength);
-      p += nline - linebuffer;
-      linebuffer = nline;
+      line_buffer->length = strlen (rl) + 1 + (p - line_buffer->buffer);
+      nline = (char *) xrealloc (line_buffer->buffer, line_buffer->length);
+      p += nline - line_buffer->buffer;
+      line_buffer->buffer = nline;
     }
   p1 = rl;
   /* Copy line.  Don't copy null at end.  (Leaves line alone
@@ -579,18 +605,18 @@ command_line_handler (char *rl)
 
   xfree (rl);			/* Allocated in readline.  */
 
-  if (p > linebuffer && *(p - 1) == '\\')
+  if (p > line_buffer->buffer && *(p - 1) == '\\')
     {
       *p = '\0';
       p--;			/* Put on top of '\'.  */
 
-      readline_input_state.linebuffer = xstrdup (linebuffer);
-      readline_input_state.linebuffer_ptr = p;
+      readline_input_state->linebuffer = xstrdup (line_buffer->buffer);
+      readline_input_state->linebuffer_ptr = p;
 
       /* We will not invoke a execute_command if there is more
 	 input expected to complete the command.  So, we need to
 	 print an empty prompt here.  */
-      more_to_come = 1;
+      console->more_to_come = 1;
       display_gdb_prompt ("");
       return;
     }
@@ -602,15 +628,15 @@ command_line_handler (char *rl)
 
 #define SERVER_COMMAND_LENGTH 7
   server_command =
-    (p - linebuffer > SERVER_COMMAND_LENGTH)
-    && strncmp (linebuffer, "server ", SERVER_COMMAND_LENGTH) == 0;
+    (p - line_buffer->buffer > SERVER_COMMAND_LENGTH)
+    && strncmp (line_buffer->buffer, "server ", SERVER_COMMAND_LENGTH) == 0;
   if (server_command)
     {
       /* Note that we don't set `line'.  Between this and the check in
          dont_repeat, this insures that repeating will still do the
          right thing.  */
       *p = '\0';
-      command_handler (linebuffer + SERVER_COMMAND_LENGTH);
+      command_handler (line_buffer->buffer + SERVER_COMMAND_LENGTH);
       display_gdb_prompt (0);
       return;
     }
@@ -623,7 +649,7 @@ command_line_handler (char *rl)
       int expanded;
 
       *p = '\0';		/* Insert null now.  */
-      expanded = history_expand (linebuffer, &history_value);
+      expanded = history_expand (line_buffer->buffer, &history_value);
       if (expanded)
 	{
 	  /* Print the changes.  */
@@ -635,27 +661,27 @@ command_line_handler (char *rl)
 	      xfree (history_value);
 	      return;
 	    }
-	  if (strlen (history_value) > linelength)
+	  if (strlen (history_value) > line_buffer->length)
 	    {
-	      linelength = strlen (history_value) + 1;
-	      linebuffer = (char *) xrealloc (linebuffer, linelength);
+	      line_buffer->length = strlen (history_value) + 1;
+	      line_buffer->buffer = (char *) xrealloc (line_buffer->buffer, line_buffer->length);
 	    }
-	  strcpy (linebuffer, history_value);
-	  p = linebuffer + strlen (linebuffer);
+	  strcpy (line_buffer->buffer, history_value);
+	  p = line_buffer->buffer + strlen (line_buffer->buffer);
 	}
       xfree (history_value);
     }
 
   /* If we just got an empty line, and that is supposed to repeat the
      previous command, return the value in the global buffer.  */
-  if (repeat && p == linebuffer && *p != '\\')
+  if (repeat && p == line_buffer->buffer && *p != '\\')
     {
       command_handler (saved_command_line);
       display_gdb_prompt (0);
       return;
     }
 
-  for (p1 = linebuffer; *p1 == ' ' || *p1 == '\t'; p1++);
+  for (p1 = line_buffer->buffer; *p1 == ' ' || *p1 == '\t'; p1++);
   if (repeat && !*p1)
     {
       command_handler (saved_command_line);
@@ -666,8 +692,8 @@ command_line_handler (char *rl)
   *p = 0;
 
   /* Add line to history if appropriate.  */
-  if (*linebuffer && input_from_terminal_p ())
-    gdb_add_history (linebuffer);
+  if (*line_buffer->buffer && input_from_terminal_p ())
+    gdb_add_history (line_buffer->buffer);
 
   /* Note: lines consisting solely of comments are added to the command
      history.  This is useful when you type a command, and then
@@ -681,13 +707,14 @@ command_line_handler (char *rl)
   /* Save into global buffer if appropriate.  */
   if (repeat)
     {
-      if (linelength > saved_command_line_size)
+      if (line_buffer->length > saved_command_line_size)
 	{
-	  saved_command_line = xrealloc (saved_command_line, linelength);
-	  saved_command_line_size = linelength;
+	  saved_command_line = xrealloc (saved_command_line,
+					 line_buffer->length);
+	  saved_command_line_size = line_buffer->length;
 	}
-      strcpy (saved_command_line, linebuffer);
-      if (!more_to_come)
+      strcpy (saved_command_line, line_buffer->buffer);
+      if (!console->more_to_come)
 	{
 	  command_handler (saved_command_line);
 	  display_gdb_prompt (0);
@@ -695,7 +722,7 @@ command_line_handler (char *rl)
       return;
     }
 
-  command_handler (linebuffer);
+  command_handler (line_buffer->buffer);
   display_gdb_prompt (0);
   return;
 }
