@@ -33,14 +33,19 @@
 #include "infrun.h"
 #include "observer.h"
 
-static struct ui_out *tui_ui_out (struct interp *self);
+static int tui_interp_p (struct interp *interp);
+
+#define ALL_TUI_INTERPS(INTERP)					\
+  ALL_INTERPS (INTERP)						\
+    if (!tui_interp_p (INTERP) || interp_quiet_p (INTERP))	\
+      {								\
+	/* Nothing.  */						\
+      }								\
+    else
 
 /* Set to 1 when the TUI mode must be activated when we first start
    gdb.  */
 static int tui_start_enabled = 0;
-
-/* The TUI interpreter.  */
-static struct interp *tui_interp;
 
 /* Cleanup the tui before exiting.  */
 
@@ -61,8 +66,10 @@ tui_exit (void)
 static void
 tui_on_signal_received (enum gdb_signal siggnal)
 {
-  if (!interp_quiet_p (tui_interp))
-    print_signal_received_reason (tui_ui_out (tui_interp), siggnal);
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    print_signal_received_reason (interp_ui_out (interp), siggnal);
 }
 
 /* Observer for the end_stepping_range notification.  */
@@ -70,8 +77,10 @@ tui_on_signal_received (enum gdb_signal siggnal)
 static void
 tui_on_end_stepping_range (void)
 {
-  if (!interp_quiet_p (tui_interp))
-    print_end_stepping_range_reason (tui_ui_out (tui_interp));
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    print_end_stepping_range_reason (interp_ui_out (interp));
 }
 
 /* Observer for the signal_exited notification.  */
@@ -79,8 +88,10 @@ tui_on_end_stepping_range (void)
 static void
 tui_on_signal_exited (enum gdb_signal siggnal)
 {
-  if (!interp_quiet_p (tui_interp))
-    print_signal_exited_reason (tui_ui_out (tui_interp), siggnal);
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    print_signal_exited_reason (interp_ui_out (interp), siggnal);
 }
 
 /* Observer for the exited notification.  */
@@ -88,8 +99,10 @@ tui_on_signal_exited (enum gdb_signal siggnal)
 static void
 tui_on_exited (int exitstatus)
 {
-  if (!interp_quiet_p (tui_interp))
-    print_exited_reason (tui_ui_out (tui_interp), exitstatus);
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    print_exited_reason (interp_ui_out (interp), exitstatus);
 }
 
 /* Observer for the no_history notification.  */
@@ -97,8 +110,10 @@ tui_on_exited (int exitstatus)
 static void
 tui_on_no_history (void)
 {
-  if (!interp_quiet_p (tui_interp))
-    print_no_history_reason (tui_ui_out (tui_interp));
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    print_no_history_reason (interp_ui_out (interp));
 }
 
 /* Observer for the sync_execution_done notification.  */
@@ -106,8 +121,13 @@ tui_on_no_history (void)
 static void
 tui_on_sync_execution_done (void)
 {
-  if (!interp_quiet_p (tui_interp))
-    display_gdb_prompt (NULL);
+  struct interp *interp;
+
+  ALL_TUI_INTERPS (interp)
+    {
+      /* FIXME: switch to console.  */
+      display_gdb_prompt (NULL);
+    }
 }
 
 /* Observer for the command_error notification.  */
@@ -115,7 +135,7 @@ tui_on_sync_execution_done (void)
 static void
 tui_on_command_error (void)
 {
-  if (!interp_quiet_p (tui_interp))
+  if (tui_interp_p (current_interpreter))
     display_gdb_prompt (NULL);
 }
 
@@ -212,17 +232,28 @@ tui_interp_factory (const char *name)
   return interp;
 }
 
+static int
+tui_interp_p (struct interp *interp)
+{
+  return interp->procs == &tui_procs;
+}
+
 /* Provide a prototype to silence -Wmissing-prototypes.  */
 extern initialize_file_ftype _initialize_tui_interp;
 
 void
 _initialize_tui_interp (void)
 {
-  interp_factory_register (INTERP_CONSOLE, tui_interp_factory);
+  struct interp *tui_interp;
 
+  interp_factory_register (INTERP_TUI, tui_interp_factory);
+
+#if 0
   /* Create a default uiout builder for the TUI.  */
   tui_interp = tui_interp_factory (NULL);
   interp_add (tui_interp);
+#endif
+
   if (interpreter_p && strcmp (interpreter_p, INTERP_TUI) == 0)
     tui_start_enabled = 1;
 
