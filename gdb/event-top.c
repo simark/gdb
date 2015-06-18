@@ -1109,3 +1109,44 @@ gdb_disable_readline (void)
   gdb_rl_callback_handler_remove ();
   delete_file_handler (input_fd);
 }
+
+/* Scratch area where 'set console-tty' will store user-provided value.
+   We'll immediate copy it into per-interpreter storage.  */
+
+static char *console_tty_scratch;
+
+static void
+set_console_tty_command (char *args, int from_tty,
+			 struct cmd_list_element *c)
+{
+  new_tty (console_tty_scratch);
+}
+
+static void
+show_console_tty_command (struct ui_file *file, int from_tty,
+			  struct cmd_list_element *c, const char *value)
+{
+  if (console_tty_scratch == NULL)
+    console_tty_scratch = "";
+  fprintf_filtered (gdb_stdout,
+		    _("Terminal for the CLI console is \"%s\".\n"),
+		    console_tty_scratch);
+}
+
+extern void _initialize_event_top (void);
+
+void
+_initialize_event_top (void)
+{
+  struct cmd_list_element *c = NULL;
+
+  /* Add the filename of the terminal connected to inferior I/O.  */
+  add_setshow_filename_cmd ("console-tty", class_run,
+			    &console_tty_scratch, _("\
+Set terminal used by GDB's CLI."), _("\
+Show terminal for GDB's CLI."), _("\
+Usage: set console-tty /dev/pts/1"),
+			    set_console_tty_command,
+			    show_console_tty_command,
+			    &setlist, &showlist);
+}
