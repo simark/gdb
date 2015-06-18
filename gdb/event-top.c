@@ -416,21 +416,39 @@ struct console
   int input_fd;
   FILE *instream;
   FILE *outstream;
-
-  struct line_buffer line_buffer;
-
-  int more_to_come;
-
-  struct readline_input_state readline_input_state;
+  FILE *errstream;
 
   /* Output channels */
   struct ui_file *out;
   struct ui_file *err;
 
+  struct ui_out *current_uiout;
+
+  struct line_buffer line_buffer;
+  int more_to_come;
+
+  struct readline_input_state readline_input_state;
+
+  /* readline state, saved/restored with
+     rl_save_state/rl_restore_state.  */
   struct readline_state readline_state;
+
+  struct interp *current_interpreter;
 };
 
 struct console *current_console;
+
+FILE *
+console_outstream (struct console *console)
+{
+  return console->outstream;
+}
+
+FILE *
+console_errstream (struct console *console)
+{
+  return console->errstream;
+}
 
 extern void switch_to_console (struct console *console);
 
@@ -542,17 +560,26 @@ switch_to_console (struct console *console)
   if (current_console == console)
     return;
 
+  /* Save.  */
+  current_console->current_interpreter = current_interpreter;
   rl_save_state (&current_console->readline_state);
 
+  current_console->input_fd = input_fd;
+  current_console->instream = instream;
+  current_console->out = gdb_stdout;
+  current_console->err = gdb_stderr;
+
+  current_console->current_uiout = current_uiout;
+
+  /* Restore.  */
   input_fd = console->input_fd;
   instream = console->instream;
-
   gdb_stdout = console->out;
   gdb_stderr = console->err;
 
-  /* HACK.  We should really do all this at the interpreter level.  */
-  current_uiout = cli_out_new (gdb_stdout);
-  
+  current_interpreter = console->current_interpreter;
+  current_uiout = console->current_uiout;
+
   rl_restore_state (&console->readline_state);
 
   /* Tell readline to use the same input stream that gdb uses.  */
@@ -1125,6 +1152,26 @@ set_async_editing_command (char *args, int from_tty,
   change_line_handler ();
 }
 
+static struct console *new_console (FILE *instream,
+				    FILE *outstream, FILE *errstream);
+
+void
+init_console (void)
+{
+  struct console *console;
+
+  gdb_assert (current_console == NULL);
+
+  console = new_console (instream, stdout, stderr);
+
+#if 0
+  console->out = gdb_stdout;
+  console->err = gdb_stderr;
+#endif
+
+  current_console = console;
+}
+
 /* Set things up for readline to be invoked via the alternate
    interface, i.e. via a callback function (rl_callback_read_char),
    and hook up instream to the event loop.  */
@@ -1137,8 +1184,10 @@ gdb_setup_readline (void)
      mess it up here.  The sync stuff should really go away over
      time.  */
   if (!batch_silent)
-    gdb_stdout = stdio_fileopen (stdout);
-  gdb_stderr = stderr_fileopen ();
+    gdb_stdout = stdio_fileopen (current_console->outstream);
+  /* FIXME */
+  gdb_stderr = stdio_fileopen (current_console->errstream);
+  //  gdb_stderr = stderr_fileopen ();
   gdb_stdlog = gdb_stderr;  /* for moment */
   gdb_stdtarg = gdb_stderr; /* for moment */
   gdb_stdtargerr = gdb_stderr; /* for moment */
@@ -1172,24 +1221,7 @@ gdb_setup_readline (void)
 
   /* Get a file descriptor for the input stream, so that we can
      register it with the event loop.  */
-  input_fd = fileno (instream);
-
-  /* XXX hack for now.  */
-  if (current_console == NULL)
-    {
-      struct console *console;
-
-      console = xcalloc (1, sizeof *console);
-
-      console->input_fd = input_fd;
-      console->instream = instream;
-      console->outstream = stdout;
-      console->out = gdb_stdout;
-      console->err = gdb_stderr;
-
-      current_console = console;
-      rl_save_state (&current_console->readline_state);
-    }
+  input_fd = fileno (current_console->instream);
 
   /* Now we need to create the event sources for the input file
      descriptor.  */
@@ -1247,11 +1279,33 @@ show_console_tty_command (struct ui_file *file, int from_tty,
 		    console_tty_scratch);
 }
 
+/* Non-zero means we have been called at least once before. */
+extern int rl_initialized;
+
+/* Supposedly private.  */
+extern Keymap _rl_keymap;
+
+static struct console *
+new_console (FILE *instream, FILE *outstream, FILE *errstream)
+{
+  struct console *console;
+
+  console = xcalloc (1, sizeof *console);
+
+  console->input_fd = -1;
+  console->instream = instream;
+  console->outstream = outstream;
+  console->errstream = errstream;
+
+  return console;
+}
+
 static void
 new_console_command (char *args, int from_tty)
 {
-  struct console *console;
   struct console *prev_console = current_console;
+  struct console *console;
+  struct interp *interp;
   FILE *stream;
   int tty;
 
@@ -1262,32 +1316,39 @@ new_console_command (char *args, int from_tty)
 
   stream = fdopen (tty, "w+");
 
-  console = xcalloc (1, sizeof *console);
+  console = new_console (stream, stream, stream);
 
   console->out = stdio_fileopen (stream);
   /* FIXME: misses disabling buffering.  */
   console->err = stdio_fileopen (stream);
   //  console->log = console->err;
 
-  console->input_fd = tty;
-  console->instream = stream;
-  console->outstream = stream;
-
-  /* Hack.  Otherwise, _rl_keymap is left NULL.  */
-  console->readline_state = current_console->readline_state;
-
   switch_to_console (console);
 
-  /* Make sure Readline has initialized its terminal settings.  */
-  rl_reset_terminal (NULL);
+  /* This isn't swapped, but we need to clear it so that the new
+     readline instance initializes.  */
+  rl_initialized = 0;
 
-  add_file_handler (tty, stdin_event_handler, console);
+  /* This is default initialized in readline, but if we just swapped
+     in a new heap allocated readline, then it's now NULL.  */
+  _rl_keymap = emacs_standard_keymap;
 
+  interp = interp_create (INTERP_CONSOLE);
+  interp_set (interp, 0);
+
+  /* Make sure Readline has initialized its terminal settings.  XX Do we
+     still need this?  */
+  //  rl_reset_terminal (NULL);
+
+  //  add_file_handler (tty, stdin_event_handler, console);
+
+  printf_unfiltered ("Hello from new GDB console\n");
   display_gdb_prompt (NULL);
 
   /* Switch back to the previous readline, before returning to it
      (we're inside a readline callback.)  */
   switch_to_console (prev_console);
+  printf_unfiltered ("New GDB console allocated\n");
 }
 
 extern void _initialize_event_top (void);

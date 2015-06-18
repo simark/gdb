@@ -19,6 +19,7 @@
 #if !defined (TERMINAL_H)
 #define TERMINAL_H 1
 
+struct console;
 
 /* If we're using autoconf, it will define HAVE_TERMIOS_H,
    HAVE_TERMIO_H and HAVE_SGTTY_H for us.  One day we can rewrite
@@ -108,5 +109,12 @@ extern void set_initial_gdb_ttystate (void);
 /* Set the process group of the caller to its own pid, or do nothing
    if we lack job control.  */
 extern int gdb_setpgid (void);
+
+extern struct console *current_console;
+
+extern FILE *console_outstream (struct console *console);
+extern FILE *console_errstream (struct console *console);
+
+extern void init_console (void);
 
 #endif /* !defined (TERMINAL_H) */

@@ -141,7 +141,7 @@ int rl_explicit_arg = 0;
 int rl_arg_sign = 1;
 
 /* Non-zero means we have been called at least once before. */
-static int rl_initialized;
+int rl_initialized;
 
 #if 0
 /* If non-zero, this program is running in an EMACS buffer. */
