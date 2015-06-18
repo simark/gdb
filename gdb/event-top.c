@@ -429,6 +429,10 @@ struct console_readline_state
   /* readline state, saved/restored with
      rl_save_state/rl_restore_state.  */
   struct readline_state readline_state;
+
+  /* More state, that isn't saved/restored automatically (a readline
+     bug)...  */
+  rl_vcpfunc_t *rl_linefunc;
 };
 
 struct console *main_console;
@@ -548,13 +552,15 @@ command_handler (char *command)
    losing line state, with a public interface.  */
 extern FILE *_rl_in_stream, *_rl_out_stream;
 
+/* Readline doesn't swap this one for us.   */
+extern rl_vcpfunc_t *rl_linefunc;
+
 void
 switch_to_console (struct console *console)
 {
   /* Save.  */
   current_console->current_interpreter = current_interpreter;
   current_console->top_level_interpreter_ptr = top_level_interpreter_ptr;
-  rl_save_state (&current_console->rl->readline_state);
 
   current_console->input_fd = input_fd;
   current_console->instream = instream;
@@ -567,6 +573,8 @@ switch_to_console (struct console *console)
   current_console->rl->input_handler = input_handler;
   current_console->rl->call_readline = call_readline;
   current_console->rl->async_command_editing_p = async_command_editing_p;
+  current_console->rl->rl_linefunc = rl_linefunc;
+  rl_save_state (&current_console->rl->readline_state);
 
   current_console->sync_execution = sync_execution;
 
@@ -592,6 +600,7 @@ switch_to_console (struct console *console)
 
   sync_execution = console->sync_execution;
 
+  rl_linefunc = console->rl->rl_linefunc;
   rl_restore_state (&console->rl->readline_state);
 
   /* Tell readline to use the same input stream that gdb uses.  */
