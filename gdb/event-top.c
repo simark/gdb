@@ -394,6 +394,46 @@ top_level_prompt (void)
   return composed_prompt;
 }
 
+struct line_buffer
+{
+  char *buffer;
+  unsigned length;
+};
+
+/* Structure to save a partially entered command.  This is used when
+   the user types '\' at the end of a command line.  This is necessary
+   because each line of input is handled by a different call to
+   command_line_handler, and normally there is no state retained
+   between different calls.  */
+struct readline_input_state
+{
+  char *linebuffer;
+  char *linebuffer_ptr;
+};
+
+struct console
+{
+  int input_fd;
+  FILE *instream;
+  FILE *outstream;
+
+  struct line_buffer line_buffer;
+
+  int more_to_come;
+
+  struct readline_input_state readline_input_state;
+
+  /* Output channels */
+  struct ui_file *out;
+  struct ui_file *err;
+
+  struct readline_state readline_state;
+};
+
+struct console *current_console;
+
+extern void switch_to_console (struct console *console);
+
 /* When there is an event ready on the stdin file desriptor, instead
    of calling readline directly throught the callback function, or
    instead of calling gdb_readline2, give gdb a chance to detect
@@ -401,6 +441,10 @@ top_level_prompt (void)
 void
 stdin_event_handler (int error, gdb_client_data client_data)
 {
+  struct console *console = (struct console *) client_data;
+
+  switch_to_console (console);
+
   if (error)
     {
       printf_unfiltered (_("error detected on stdin\n"));
@@ -485,43 +529,68 @@ command_handler (char *command)
   do_cleanups (stat_chain);
 }
 
-struct line_buffer
+#include "cli-out.h"
+
+/* The readline streams we interact with.  These are supposedly
+   private to readline, but I'm seeing no way to flip them without
+   losing line state, with a public interface.  */
+extern FILE *_rl_in_stream, *_rl_out_stream;
+
+void
+switch_to_console (struct console *console)
 {
-  char *buffer;
-  unsigned length;
-};
+  if (current_console == console)
+    return;
 
-/* Structure to save a partially entered command.  This is used when
-   the user types '\' at the end of a command line.  This is necessary
-   because each line of input is handled by a different call to
-   command_line_handler, and normally there is no state retained
-   between different calls.  */
-struct readline_input_state
-{
-  char *linebuffer;
-  char *linebuffer_ptr;
-};
+  rl_save_state (&current_console->readline_state);
 
-struct console
-{
-  int tty;
+  input_fd = console->input_fd;
+  instream = console->instream;
 
-  struct line_buffer line_buffer;
+  gdb_stdout = console->out;
+  gdb_stderr = console->err;
 
-  int more_to_come;
+  /* HACK.  We should really do all this at the interpreter level.  */
+  current_uiout = cli_out_new (gdb_stdout);
+  
+  rl_restore_state (&console->readline_state);
 
-  struct readline_input_state readline_input_state;
-};
+  /* Tell readline to use the same input stream that gdb uses.  */
+  rl_instream = instream;
+  rl_outstream = console->outstream;
 
-static struct console main_console;
+  /* Must do these directly instead of waiting for
+     rl_callback_handler_install to them up on next prompt display,
+     which would be too late -- we need to echo the just-pressed key
+     to _rl_out_stream.  */
+  _rl_in_stream = instream;
+  _rl_out_stream = console->outstream;
 
+  gdb_assert (instream == rl_instream);
+
+  current_console = console;
+}
+
+typedef struct console *console_p;
+
+DEF_VEC_P(console_p);
+
+static VEC(console_p) *consoles;
+
+#if 0
 static struct console *
 get_console (int fd)
 {
-  /* The plan is to look up the console for rl_instream.  For now,
-     there's only one.  */
-  return &main_console;
+  struct console *c;
+  int ix;
+
+  for (ix = 0; VEC_iterate (console_p, consoles, ix, c); ++ix)
+    if (c->input_fd == fd)
+      return c;
+
+  gdb_assert_not_reached ("unknown console descriptor\n");
 }
+#endif
 
 /* Handle a complete line of input.  This is called by the callback
    mechanism within the readline library.  Deal with incomplete
@@ -535,7 +604,7 @@ get_console (int fd)
 static void
 command_line_handler (char *rl)
 {
-  struct console *console = get_console (input_fd);
+  struct console *console = current_console;
   struct line_buffer *line_buffer = &console->line_buffer;
   struct readline_input_state *readline_input_state
     = &console->readline_input_state;
@@ -1059,6 +1128,7 @@ set_async_editing_command (char *args, int from_tty,
 /* Set things up for readline to be invoked via the alternate
    interface, i.e. via a callback function (rl_callback_read_char),
    and hook up instream to the event loop.  */
+
 void
 gdb_setup_readline (void)
 {
@@ -1091,18 +1161,35 @@ gdb_setup_readline (void)
       async_command_editing_p = 0;
       call_readline = gdb_readline2;
     }
-  
+
   /* When readline has read an end-of-line character, it passes the
      complete line to gdb for processing; command_line_handler is the
      function that does this.  */
   input_handler = command_line_handler;
-      
+
   /* Tell readline to use the same input stream that gdb uses.  */
   rl_instream = instream;
 
   /* Get a file descriptor for the input stream, so that we can
      register it with the event loop.  */
   input_fd = fileno (instream);
+
+  /* XXX hack for now.  */
+  if (current_console == NULL)
+    {
+      struct console *console;
+
+      console = xcalloc (1, sizeof *console);
+
+      console->input_fd = input_fd;
+      console->instream = instream;
+      console->outstream = stdout;
+      console->out = gdb_stdout;
+      console->err = gdb_stderr;
+
+      current_console = console;
+      rl_save_state (&current_console->readline_state);
+    }
 
   /* Now we need to create the event sources for the input file
      descriptor.  */
@@ -1111,7 +1198,7 @@ gdb_setup_readline (void)
      target program (inferior), but that must be registered only when
      it actually exists (I.e. after we say 'run' or after we connect
      to a remote target.  */
-  add_file_handler (input_fd, stdin_event_handler, 0);
+  add_file_handler (input_fd, stdin_event_handler, current_console);
 }
 
 /* Disable command input through the standard CLI channels.  Used in
@@ -1160,6 +1247,49 @@ show_console_tty_command (struct ui_file *file, int from_tty,
 		    console_tty_scratch);
 }
 
+static void
+new_console_command (char *args, int from_tty)
+{
+  struct console *console;
+  struct console *prev_console = current_console;
+  FILE *stream;
+  int tty;
+
+  /* Now open the specified new terminal.  */
+  tty = open (args, O_RDWR | O_NOCTTY);
+  if (tty < 0)
+    perror_with_name  (_("opening terminal failed"));
+
+  stream = fdopen (tty, "w+");
+
+  console = xcalloc (1, sizeof *console);
+
+  console->out = stdio_fileopen (stream);
+  /* FIXME: misses disabling buffering.  */
+  console->err = stdio_fileopen (stream);
+  //  console->log = console->err;
+
+  console->input_fd = tty;
+  console->instream = stream;
+  console->outstream = stream;
+
+  /* Hack.  Otherwise, _rl_keymap is left NULL.  */
+  console->readline_state = current_console->readline_state;
+
+  switch_to_console (console);
+
+  /* Make sure Readline has initialized its terminal settings.  */
+  rl_reset_terminal (NULL);
+
+  add_file_handler (tty, stdin_event_handler, console);
+
+  display_gdb_prompt (NULL);
+
+  /* Switch back to the previous readline, before returning to it
+     (we're inside a readline callback.)  */
+  switch_to_console (prev_console);
+}
+
 extern void _initialize_event_top (void);
 
 void
@@ -1176,4 +1306,7 @@ Usage: set console-tty /dev/pts/1"),
 			    set_console_tty_command,
 			    show_console_tty_command,
 			    &setlist, &showlist);
+
+  add_com ("new-console", class_support, new_console_command,
+	   _("Create new console."));
 }
