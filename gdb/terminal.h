@@ -140,6 +140,8 @@ struct console
   struct interp *current_interpreter;
   struct interp *top_level_interpreter_ptr;
 
+  int sync_execution;
+
   /* Readline-related things.  Private to most of GDB.  */
   struct console_readline_state *rl;
 };

@@ -189,11 +189,17 @@ tui_on_sync_execution_done (void)
   struct console *console;
   int ix;
 
+  /* Save the current state.   */
+  switch_to_console (current_console);
+
   for (ix = 0; VEC_iterate (console_ptr, consoles, ix, console); ++ix)
     {
-      if (tui_interp_p (console->current_interpreter))
+      if (console->sync_execution
+	  && tui_interp_p (console->current_interpreter))
 	{
 	  switch_to_console (console);
+
+	  async_enable_stdin ();
 	  display_gdb_prompt (NULL);
 	}
     }

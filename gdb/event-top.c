@@ -550,9 +550,6 @@ extern FILE *_rl_in_stream, *_rl_out_stream;
 void
 switch_to_console (struct console *console)
 {
-  if (current_console == console)
-    return;
-
   /* Save.  */
   current_console->current_interpreter = current_interpreter;
   current_console->top_level_interpreter_ptr = top_level_interpreter_ptr;
@@ -570,6 +567,13 @@ switch_to_console (struct console *console)
   current_console->rl->call_readline = call_readline;
   current_console->rl->async_command_editing_p = async_command_editing_p;
 
+  current_console->sync_execution = sync_execution;
+
+  /* We're just saving the current state.  No need to switch it
+     back.  */
+  if (current_console == console)
+    return;
+
   /* Restore.  */
   input_fd = console->input_fd;
   instream = console->instream;
@@ -584,6 +588,8 @@ switch_to_console (struct console *console)
   input_handler = console->rl->input_handler;
   call_readline = console->rl->call_readline;
   async_command_editing_p = console->rl->async_command_editing_p;
+
+  sync_execution = console->sync_execution;
 
   rl_restore_state (&console->rl->readline_state);
 
