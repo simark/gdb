@@ -1313,6 +1313,8 @@ new_console (FILE *instream, FILE *outstream, FILE *errstream)
   console->rl = XCNEW (struct console_readline_state);
   console->rl->readline_state = initial_readline_state;
 
+  console->term_state = new_term_state ();
+
   VEC_safe_push (console_ptr, consoles, console);
 
   return console;

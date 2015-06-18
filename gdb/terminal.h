@@ -20,6 +20,7 @@
 #define TERMINAL_H 1
 
 struct console;
+struct term_state;
 
 /* If we're using autoconf, it will define HAVE_TERMIOS_H,
    HAVE_TERMIO_H and HAVE_SGTTY_H for us.  One day we can rewrite
@@ -121,6 +122,8 @@ extern void init_console (void);
 
 extern void switch_to_console (struct console *console);
 
+struct term_state *new_term_state (void);
+
 struct console_readline_state;
 
 struct console
@@ -144,6 +147,8 @@ struct console
 
   /* Readline-related things.  Private to most of GDB.  */
   struct console_readline_state *rl;
+
+  struct term_state *term_state;
 };
 
 typedef struct console *console_ptr;
