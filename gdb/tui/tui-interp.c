@@ -32,6 +32,7 @@
 #include "tui/tui-interp.h"
 #include "infrun.h"
 #include "observer.h"
+#include "terminal.h"
 
 static int tui_interp_p (struct interp *interp);
 
@@ -184,13 +185,20 @@ tui_on_normal_stop (struct bpstats *bs, int print_frame)
 static void
 tui_on_sync_execution_done (void)
 {
-  struct interp *interp;
+  struct console *prev_console = current_console;
+  struct console *console;
+  int ix;
 
-  ALL_TUI_INTERPS (interp)
+  for (ix = 0; VEC_iterate (console_ptr, consoles, ix, console); ++ix)
     {
-      /* FIXME: switch to console.  */
-      display_gdb_prompt (NULL);
+      if (tui_interp_p (console->current_interpreter))
+	{
+	  switch_to_console (console);
+	  display_gdb_prompt (NULL);
+	}
     }
+
+  switch_to_console (prev_console);
 }
 
 /* Observer for the command_error notification.  */

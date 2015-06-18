@@ -77,6 +77,8 @@ struct console;
 #endif /* sgtty */
 #endif
 
+#include "vec.h"
+
 struct inferior;
 
 extern void new_tty_prefork (const char *);
@@ -116,5 +118,37 @@ extern FILE *console_outstream (struct console *console);
 extern FILE *console_errstream (struct console *console);
 
 extern void init_console (void);
+
+extern void switch_to_console (struct console *console);
+
+struct console_readline_state;
+
+struct console
+{
+  int input_fd;
+  FILE *instream;
+  FILE *outstream;
+  FILE *errstream;
+
+  /* Output channels */
+  struct ui_file *out;
+  struct ui_file *err;
+  struct ui_file *log;
+
+  struct ui_out *current_uiout;
+
+  struct interp *current_interpreter;
+  struct interp *top_level_interpreter_ptr;
+
+  /* Readline-related things.  Private to most of GDB.  */
+  struct console_readline_state *rl;
+};
+
+typedef struct console *console_ptr;
+DEF_VEC_P(console_ptr);
+
+extern VEC(console_ptr) *consoles;
+
+extern struct console *current_console;
 
 #endif /* !defined (TERMINAL_H) */

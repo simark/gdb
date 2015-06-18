@@ -414,20 +414,8 @@ struct readline_input_state
   char *linebuffer_ptr;
 };
 
-struct console
+struct console_readline_state
 {
-  int input_fd;
-  FILE *instream;
-  FILE *outstream;
-  FILE *errstream;
-
-  /* Output channels */
-  struct ui_file *out;
-  struct ui_file *err;
-  struct ui_file *log;
-
-  struct ui_out *current_uiout;
-
   struct line_buffer line_buffer;
   int more_to_come;
 
@@ -441,9 +429,6 @@ struct console
   /* readline state, saved/restored with
      rl_save_state/rl_restore_state.  */
   struct readline_state readline_state;
-
-  struct interp *current_interpreter;
-  struct interp *top_level_interpreter_ptr;
 };
 
 struct console *current_console;
@@ -459,8 +444,6 @@ console_errstream (struct console *console)
 {
   return console->errstream;
 }
-
-extern void switch_to_console (struct console *console);
 
 /* When there is an event ready on the stdin file desriptor, instead
    of calling readline directly throught the callback function, or
@@ -573,7 +556,7 @@ switch_to_console (struct console *console)
   /* Save.  */
   current_console->current_interpreter = current_interpreter;
   current_console->top_level_interpreter_ptr = top_level_interpreter_ptr;
-  rl_save_state (&current_console->readline_state);
+  rl_save_state (&current_console->rl->readline_state);
 
   current_console->input_fd = input_fd;
   current_console->instream = instream;
@@ -583,9 +566,9 @@ switch_to_console (struct console *console)
 
   current_console->current_uiout = current_uiout;
 
-  current_console->input_handler = input_handler;
-  current_console->call_readline = call_readline;
-  current_console->async_command_editing_p = async_command_editing_p;
+  current_console->rl->input_handler = input_handler;
+  current_console->rl->call_readline = call_readline;
+  current_console->rl->async_command_editing_p = async_command_editing_p;
 
   /* Restore.  */
   input_fd = console->input_fd;
@@ -598,11 +581,11 @@ switch_to_console (struct console *console)
   top_level_interpreter_ptr = console->top_level_interpreter_ptr;
   current_uiout = console->current_uiout;
 
-  input_handler = console->input_handler;
-  call_readline = console->call_readline;
-  async_command_editing_p = console->async_command_editing_p;
+  input_handler = console->rl->input_handler;
+  call_readline = console->rl->call_readline;
+  async_command_editing_p = console->rl->async_command_editing_p;
 
-  rl_restore_state (&console->readline_state);
+  rl_restore_state (&console->rl->readline_state);
 
   /* Tell readline to use the same input stream that gdb uses.  */
   rl_instream = instream;
@@ -620,11 +603,7 @@ switch_to_console (struct console *console)
   current_console = console;
 }
 
-typedef struct console *console_p;
-
-DEF_VEC_P(console_p);
-
-static VEC(console_p) *consoles;
+VEC(console_ptr) *consoles;
 
 #if 0
 static struct console *
@@ -654,9 +633,9 @@ static void
 command_line_handler (char *rl)
 {
   struct console *console = current_console;
-  struct line_buffer *line_buffer = &console->line_buffer;
+  struct line_buffer *line_buffer = &console->rl->line_buffer;
   struct readline_input_state *readline_input_state
-    = &console->readline_input_state;
+    = &console->rl->readline_input_state;
   char *p;
   char *p1;
   char *nline;
@@ -678,12 +657,12 @@ command_line_handler (char *rl)
 
   p = line_buffer->buffer;
 
-  if (console->more_to_come)
+  if (console->rl->more_to_come)
     {
       strcpy (line_buffer->buffer, readline_input_state->linebuffer);
       p = readline_input_state->linebuffer_ptr;
       xfree (readline_input_state->linebuffer);
-      console->more_to_come = 0;
+      console->rl->more_to_come = 0;
     }
 
 #ifdef STOP_SIGNAL
@@ -734,7 +713,7 @@ command_line_handler (char *rl)
       /* We will not invoke a execute_command if there is more
 	 input expected to complete the command.  So, we need to
 	 print an empty prompt here.  */
-      console->more_to_come = 1;
+      console->rl->more_to_come = 1;
       display_gdb_prompt ("");
       return;
     }
@@ -832,7 +811,7 @@ command_line_handler (char *rl)
 	  saved_command_line_size = line_buffer->length;
 	}
       strcpy (saved_command_line, line_buffer->buffer);
-      if (!console->more_to_come)
+      if (!console->rl->more_to_come)
 	{
 	  command_handler (saved_command_line);
 	  display_gdb_prompt (0);
@@ -1325,7 +1304,10 @@ new_console (FILE *instream, FILE *outstream, FILE *errstream)
   console->outstream = outstream;
   console->errstream = errstream;
 
-  console->readline_state = initial_readline_state;
+  console->rl = XCNEW (struct console_readline_state);
+  console->rl->readline_state = initial_readline_state;
+
+  VEC_safe_push (console_ptr, consoles, console);
 
   return console;
 }
