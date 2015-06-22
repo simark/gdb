@@ -1646,6 +1646,14 @@ finish_command_continuation (void *arg, int err)
 	  bs = tp->control.stop_bpstat;
 	}
 
+      /* XXX: Comment for upstream: moved up because normal_stop no longer
+	 calls print_stop_event before we reach here.  */
+      /* We suppress normal call of normal_stop observer and do it
+	 here so that the *stopped notification includes the return
+	 value.  */
+      if (bs != NULL && tp->control.proceed_to_finish)
+	observer_notify_normal_stop (bs, 1 /* print frame */);
+
       if (bpstat_find_breakpoint (bs, a->breakpoint) != NULL
 	  && a->function != NULL)
 	{
@@ -1675,12 +1683,6 @@ finish_command_continuation (void *arg, int err)
 	      END_CATCH
 	    }
 	}
-
-      /* We suppress normal call of normal_stop observer and do it
-	 here so that the *stopped notification includes the return
-	 value.  */
-      if (bs != NULL && tp->control.proceed_to_finish)
-	observer_notify_normal_stop (bs, 1 /* print frame */);
     }
 
   delete_breakpoint (a->breakpoint);
