@@ -1567,13 +1567,10 @@ get_return_value (struct value *function, struct type *value_type,
    an inferior call has finished.  */
 
 static void
-print_return_value (struct value *function, struct type *value_type,
-		    struct dummy_frame_context_saver *ctx_saver)
+print_return_value_1 (struct ui_out *uiout, struct type *return_type,
+		      struct value *value, int valhist_index)
 {
-  struct value *value = get_return_value (function, value_type, ctx_saver);
-  struct ui_out *uiout = current_uiout;
-
-  if (value)
+  if (value != NULL)
     {
       struct value_print_options opts;
       struct ui_file *stb;
@@ -1583,8 +1580,7 @@ print_return_value (struct value *function, struct type *value_type,
       stb = mem_fileopen ();
       old_chain = make_cleanup_ui_file_delete (stb);
       ui_out_text (uiout, "Value returned is ");
-      ui_out_field_fmt (uiout, "gdb-result-var", "$%d",
-			record_latest_value (value));
+      ui_out_field_fmt (uiout, "gdb-result-var", "$%d", valhist_index);
       ui_out_text (uiout, " = ");
       get_no_prettyformat_print_options (&opts);
       value_print (value, stb, &opts);
@@ -1597,7 +1593,7 @@ print_return_value (struct value *function, struct type *value_type,
       struct cleanup *oldchain;
       char *type_name;
 
-      type_name = type_to_string (value_type);
+      type_name = type_to_string (return_type);
       oldchain = make_cleanup (xfree, type_name);
       ui_out_text (uiout, "Value returned has type: ");
       ui_out_field_string (uiout, "return-type", type_name);
@@ -1605,6 +1601,23 @@ print_return_value (struct value *function, struct type *value_type,
       ui_out_text (uiout, " Cannot determine contents\n");
       do_cleanups (oldchain);
     }
+}
+
+void
+print_return_value (struct ui_out *uiout, struct type *value_type,
+		    struct value *return_value, int valhist_index)
+{
+  /* print_return_value_ can throw an exception in some circumstances.
+     We need to catch this so that we still delete the breakpoint.  */
+  TRY
+    {
+      print_return_value_1 (uiout, value_type, return_value, valhist_index);
+    }
+  CATCH (ex, RETURN_MASK_ALL)
+    {
+      exception_print (gdb_stdout, ex);
+    }
+  END_CATCH
 }
 
 /* Stuff that needs to be done by the finish command after the target
@@ -1646,14 +1659,6 @@ finish_command_continuation (void *arg, int err)
 	  bs = tp->control.stop_bpstat;
 	}
 
-      /* XXX: Comment for upstream: moved up because normal_stop no longer
-	 calls print_stop_event before we reach here.  */
-      /* We suppress normal call of normal_stop observer and do it
-	 here so that the *stopped notification includes the return
-	 value.  */
-      if (bs != NULL && tp->control.proceed_to_finish)
-	observer_notify_normal_stop (bs, 1 /* print frame */);
-
       if (bpstat_find_breakpoint (bs, a->breakpoint) != NULL
 	  && a->function != NULL)
 	{
@@ -1667,22 +1672,27 @@ finish_command_continuation (void *arg, int err)
 	  if (TYPE_CODE (value_type) != TYPE_CODE_VOID)
 	    {
 	      struct value *func;
+	      struct value *return_value;
+	      int valhist_index;
 
 	      func = read_var_value (a->function, get_current_frame ());
-	      TRY
-		{
-		  /* print_return_value can throw an exception in some
-		     circumstances.  We need to catch this so that we still
-		     delete the breakpoint.  */
-		  print_return_value (func, value_type, a->ctx_saver);
-		}
-	      CATCH (ex, RETURN_MASK_ALL)
-		{
-		  exception_print (gdb_stdout, ex);
-		}
-	      END_CATCH
+
+	      return_value = get_return_value (func, value_type, a->ctx_saver);
+	      if (return_value != NULL)
+		valhist_index = record_latest_value (return_value);
+	      else
+		valhist_index = -1;
+
+	      observer_notify_finish_command_done (value_type,
+						   return_value, valhist_index);
 	    }
 	}
+
+      /* We suppress normal call of normal_stop observer and do it
+	 here so that the *stopped notification includes the return
+	 value.  */
+      if (bs != NULL && tp->control.proceed_to_finish)
+	observer_notify_normal_stop (bs, 1 /* print frame */);
     }
 
   delete_breakpoint (a->breakpoint);

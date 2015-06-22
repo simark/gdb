@@ -492,6 +492,33 @@ mi_on_end_stepping_range (void)
   print_end_stepping_range_reason (mi->cli_uiout);
 }
 
+extern int should_print_stop_to_console (struct interp *interp,
+					 struct thread_info *tp);
+
+static void
+mi_on_finish_command_done (struct type *return_type,
+			   struct value *return_value, int valhist_index)
+{
+  struct interp *interp = current_interpreter;
+  struct mi_interp *mi = interp->data;
+  struct interp *console_interp;
+  struct thread_info *tp;
+
+  tp = inferior_thread ();
+
+  print_stop_event (mi->mi_uiout);
+  print_return_value (mi->mi_uiout, return_type, return_value, valhist_index);
+
+  console_interp = interp_lookup (current_terminal, INTERP_CONSOLE);
+  if (console_interp != NULL
+      && should_print_stop_to_console (console_interp, tp))
+    {
+      print_stop_event (mi->cli_uiout);
+      print_return_value (mi->cli_uiout, return_type,
+			  return_value, valhist_index);
+    }
+}
+
 /* Observer for the signal_exited notification.  */
 
 static void
@@ -528,29 +555,29 @@ mi_on_no_history (void)
   print_no_history_reason (mi->cli_uiout);
 }
 
-extern int should_print_stop_to_console (struct interp *interp,
-					 struct thread_info *tp);
-
 static void
 mi_on_normal_stop (struct bpstats *bs, int print_frame)
 {
   struct interp *interp = current_interpreter;
   struct mi_interp *mi = interp->data;
-  struct thread_info *tp;
-
-  tp = inferior_thread ();
 
   if (print_frame)
     {
+      struct thread_info *tp;
       int core;
-      struct interp *console_interp;
 
-      print_stop_event (mi->mi_uiout);
+      tp = inferior_thread ();
 
-      console_interp = interp_lookup (current_terminal, INTERP_CONSOLE);
-      if (console_interp != NULL
-	  && should_print_stop_to_console (console_interp, tp))
-	print_stop_event (mi->cli_uiout);
+      if (!tp->control.proceed_to_finish)
+	{
+	  struct interp *console_interp;
+
+	  print_stop_event (mi->mi_uiout);
+	  console_interp = interp_lookup (current_terminal, INTERP_CONSOLE);
+	  if (console_interp != NULL
+	      && should_print_stop_to_console (console_interp, tp))
+	    print_stop_event (mi->cli_uiout);
+	}
 
       ui_out_field_int (mi->mi_uiout, "thread-id",
 			pid_to_thread_id (inferior_ptid));
@@ -1206,6 +1233,7 @@ static const struct interp_procs mi_interp_procs =
     mi_on_normal_stop,
     mi_on_signal_received,
     mi_on_end_stepping_range,
+    mi_on_finish_command_done,
     mi_on_signal_exited,
     mi_on_exited,
     mi_on_no_history,

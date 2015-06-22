@@ -80,6 +80,27 @@ cli_on_end_stepping_range (void)
   print_end_stepping_range_reason (interp_ui_out (interp));
 }
 
+extern void cli_on_finish_command_done (struct type *return_type,
+					struct value *return_value, int valhist_index);
+
+void
+cli_on_finish_command_done (struct type *return_type,
+			    struct value *return_value, int valhist_index)
+{
+  struct interp *interp = current_interpreter;
+  struct thread_info *tp;
+
+  tp = inferior_thread ();
+  if (should_print_stop_to_console (interp, tp))
+    {
+      struct ui_out *cli_uiout = interp_ui_out (interp);
+
+      print_stop_event (cli_uiout);
+      print_return_value (cli_uiout, return_type,
+			  return_value, valhist_index);
+    }
+}
+
 /* Observer for the signalled notification.  */
 
 void
@@ -156,6 +177,10 @@ cli_on_normal_stop (struct bpstats *bs, int print_frame)
     return;
 
   tp = inferior_thread ();
+
+  /* "finish" is handled in cli_on_finish_command_done.  */
+  if (tp->control.proceed_to_finish)
+    return;
 
   /* Broadcast asynchronous stops to all consoles.  If we just
      finished a step, print this to the console if it was the console
@@ -320,6 +345,7 @@ static const struct interp_procs console_interp_procs = {
   cli_on_normal_stop,
   cli_on_signal_received,
   cli_on_end_stepping_range,
+  cli_on_finish_command_done,
   cli_on_signal_exited,
   cli_on_exited,
   cli_on_no_history,

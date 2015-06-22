@@ -65,6 +65,7 @@ struct objfile;
 struct thread_info;
 struct inferior;
 struct trace_state_variable;
+struct return_value_context;
 EOF
         ;;
 esac

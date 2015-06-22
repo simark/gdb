@@ -102,6 +102,10 @@ The inferior was stopped by a signal.
 We are done with a step/next/si/ni command.
 @end deftypefun
 
+@deftypefun void finish_command_done (struct type *@var{return_type}, struct value *@var{return_value}, int @var{valhist_index})
+We are done with a finish command.
+@end deftypefun
+
 @deftypefun void signal_exited (enum gdb_signal @var{siggnal})
 The inferior was terminated by a signal.
 @end deftypefun

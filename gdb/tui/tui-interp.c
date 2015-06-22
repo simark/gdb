@@ -54,6 +54,9 @@ tui_exit (void)
 
 extern void cli_on_signal_received (enum gdb_signal siggnal);
 extern void cli_on_end_stepping_range (void);
+extern void cli_on_finish_command_done (struct type *return_type,
+					struct value *return_value,
+					int valhist_index);
 extern void cli_on_signal_exited (enum gdb_signal siggnal);
 extern void cli_on_exited (int exitstatus);
 extern void cli_on_no_history (void);
@@ -125,6 +128,7 @@ static const struct interp_procs tui_interp_procs = {
   cli_on_normal_stop,
   cli_on_signal_received,
   cli_on_end_stepping_range,
+  cli_on_finish_command_done,
   cli_on_signal_exited,
   cli_on_exited,
   cli_on_no_history,

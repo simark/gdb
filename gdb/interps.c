@@ -593,6 +593,10 @@ GEN_INTERP_CALL (on_normal_stop, (struct bpstats *bs,
 				  int print_frame), (bs, print_frame))
 GEN_INTERP_CALL (on_signal_received, (enum gdb_signal siggnal), (siggnal))
 GEN_INTERP_CALL (on_end_stepping_range, (void), ())
+GEN_INTERP_CALL (on_finish_command_done, (struct type *return_type,
+					  struct value *return_value,
+					  int valhist_index),
+		 (return_type, return_value, valhist_index))
 GEN_INTERP_CALL (on_signal_exited, (enum gdb_signal siggnal), (siggnal))
 GEN_INTERP_CALL (on_exited, (int exitstatus), (exitstatus))
 GEN_INTERP_CALL (on_no_history, (void), ())
@@ -649,6 +653,7 @@ The second argument is the command to execute.\n"), &cmdlist);
 
   observer_attach_signal_received (interp_on_signal_received);
   observer_attach_end_stepping_range (interp_on_end_stepping_range);
+  observer_attach_finish_command_done (interp_on_finish_command_done);
   observer_attach_signal_exited (interp_on_signal_exited);
   observer_attach_exited (interp_on_exited);
   observer_attach_no_history (interp_on_no_history);

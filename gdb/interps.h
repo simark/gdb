@@ -31,6 +31,7 @@ struct bpstats;
 struct breakpoint;
 struct so_list;
 struct terminal;
+struct return_value_context;
 
 typedef struct interp *(*interp_factory_func) (const char *interp,
 					       struct terminal *terminal);
@@ -61,6 +62,9 @@ typedef int (interp_set_logging_ftype) (struct interp *self, int start_log,
 typedef void (interp_on_normal_stop_ftype) (struct bpstats *bs, int print_frame);
 typedef void (interp_on_signal_received_ftype) (enum gdb_signal siggnal);
 typedef void (interp_on_end_stepping_range_ftype) (void);
+typedef void (interp_on_finish_command_done_ftype) (struct type *return_type,
+						    struct value *return_value,
+						    int valhist_index);
 typedef void (interp_on_signal_exited_ftype) (enum gdb_signal siggnal);
 typedef void (interp_on_exited_ftype) (int exitstatus);
 typedef void (interp_on_no_history_ftype) (void);
@@ -112,6 +116,7 @@ struct interp_procs
   interp_on_normal_stop_ftype *on_normal_stop;
   interp_on_signal_received_ftype *on_signal_received;
   interp_on_end_stepping_range_ftype *on_end_stepping_range;
+  interp_on_finish_command_done_ftype *on_finish_command_done;
   interp_on_signal_exited_ftype *on_signal_exited;
   interp_on_exited_ftype *on_exited;
   interp_on_no_history_ftype *on_no_history;
