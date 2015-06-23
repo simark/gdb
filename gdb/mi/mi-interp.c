@@ -294,8 +294,10 @@ mi_on_sync_execution_done (void)
 {
   struct interp *interp = current_interpreter;
 
-  if (sync_execution)
-    async_enable_stdin ();
+  if (!sync_execution)
+    return;
+
+  async_enable_stdin ();
 
   /* MI generally prints a prompt after a command, indicating it's
      ready for further input.  However, due to an historical wart, if

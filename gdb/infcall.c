@@ -390,7 +390,7 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 
   /* Infcalls run synchronously, in the foreground.  */
   if (target_can_async_p ())
-    sync_execution = 1;
+    async_disable_stdin ();
 
   call_thread->control.in_infcall = 1;
 
@@ -449,7 +449,8 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
   if (call_thread != NULL)
     call_thread->control.in_infcall = saved_in_infcall;
 
-  sync_execution = saved_sync_execution;
+  if (!saved_sync_execution)
+    async_enable_stdin ();
 
   return caught_error;
 }
