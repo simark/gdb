@@ -496,6 +496,9 @@ mi_on_end_stepping_range (void)
 
 extern int should_print_stop_to_console (struct interp *interp,
 					 struct thread_info *tp);
+static void mi_finish_stop_event (int print_frame);
+static int should_print_stop_to_mi_console (struct terminal *terminal,
+					    struct thread_info *tp);
 
 static void
 mi_on_finish_command_done (struct type *return_type,
@@ -506,14 +509,12 @@ mi_on_finish_command_done (struct type *return_type,
   struct interp *console_interp;
   struct thread_info *tp;
 
-  tp = inferior_thread ();
-
   print_stop_event (mi->mi_uiout);
   print_return_value (mi->mi_uiout, return_type, return_value, valhist_index);
+  mi_finish_stop_event (1);
 
-  console_interp = interp_lookup (current_terminal, INTERP_CONSOLE);
-  if (console_interp != NULL
-      && should_print_stop_to_console (console_interp, tp))
+  tp = inferior_thread ();
+  if (should_print_stop_to_mi_console (current_terminal, tp))
     {
       print_stop_event (mi->cli_uiout);
       print_return_value (mi->cli_uiout, return_type,
@@ -558,28 +559,14 @@ mi_on_no_history (void)
 }
 
 static void
-mi_on_normal_stop (struct bpstats *bs, int print_frame)
+mi_finish_stop_event (int print_frame)
 {
   struct interp *interp = current_interpreter;
   struct mi_interp *mi = interp->data;
 
   if (print_frame)
     {
-      struct thread_info *tp;
       int core;
-
-      tp = inferior_thread ();
-
-      if (!tp->control.proceed_to_finish)
-	{
-	  struct interp *console_interp;
-
-	  print_stop_event (mi->mi_uiout);
-	  console_interp = interp_lookup (current_terminal, INTERP_CONSOLE);
-	  if (console_interp != NULL
-	      && should_print_stop_to_console (console_interp, tp))
-	    print_stop_event (mi->cli_uiout);
-	}
 
       ui_out_field_int (mi->mi_uiout, "thread-id",
 			pid_to_thread_id (inferior_ptid));
@@ -600,13 +587,53 @@ mi_on_normal_stop (struct bpstats *bs, int print_frame)
       if (core != -1)
 	ui_out_field_int (mi->mi_uiout, "core", core);
     }
-  
+
   fputs_unfiltered ("*stopped", raw_stdout);
   mi_out_put (mi->mi_uiout, raw_stdout);
   mi_out_rewind (mi->mi_uiout);
   mi_print_timing_maybe ();
   fputs_unfiltered ("\n", raw_stdout);
   gdb_flush (raw_stdout);
+}
+
+static int
+should_print_stop_to_mi_console (struct terminal *terminal,
+				 struct thread_info *tp)
+{
+  struct interp *console_interp;
+
+  console_interp = interp_lookup (terminal, INTERP_CONSOLE);
+  if (console_interp != NULL
+      && should_print_stop_to_console (console_interp, tp))
+    return 1;
+  return 0;
+}
+
+static void
+mi_on_normal_stop (struct bpstats *bs, int print_frame)
+{
+  struct interp *interp = current_interpreter;
+  struct mi_interp *mi = interp->data;
+
+  if (print_frame)
+    {
+      struct interp *console_interp;
+      struct thread_info *tp;
+      int core;
+
+      tp = inferior_thread ();
+
+      /* "finish" is handled in mi_on_finish_command_done.  */
+      if (execution_direction == EXEC_FORWARD
+	  && tp->control.proceed_to_finish)
+	return;
+
+      print_stop_event (mi->mi_uiout);
+      if (should_print_stop_to_mi_console (current_terminal, tp))
+	print_stop_event (mi->cli_uiout);
+    }
+
+  mi_finish_stop_event (print_frame);
 }
 
 #if 0

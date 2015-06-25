@@ -1570,6 +1570,9 @@ static void
 print_return_value_1 (struct ui_out *uiout, struct type *return_type,
 		      struct value *value, int valhist_index)
 {
+  if (TYPE_CODE (return_type) == TYPE_CODE_VOID)
+    return;
+
   if (value != NULL)
     {
       struct value_print_options opts;
@@ -1663,6 +1666,8 @@ finish_command_continuation (void *arg, int err)
 	  && a->function != NULL)
 	{
 	  struct type *value_type;
+	  struct value *return_value = NULL;
+	  int valhist_index = -1;
 
 	  value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (a->function));
 	  if (!value_type)
@@ -1672,20 +1677,17 @@ finish_command_continuation (void *arg, int err)
 	  if (TYPE_CODE (value_type) != TYPE_CODE_VOID)
 	    {
 	      struct value *func;
-	      struct value *return_value;
-	      int valhist_index;
 
 	      func = read_var_value (a->function, get_current_frame ());
 
 	      return_value = get_return_value (func, value_type, a->ctx_saver);
 	      if (return_value != NULL)
 		valhist_index = record_latest_value (return_value);
-	      else
-		valhist_index = -1;
 
-	      observer_notify_finish_command_done (value_type,
-						   return_value, valhist_index);
 	    }
+
+	  observer_notify_finish_command_done (value_type, return_value,
+					       valhist_index);
 	}
 
       /* We suppress normal call of normal_stop observer and do it
