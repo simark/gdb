@@ -171,33 +171,49 @@ void
 cli_on_normal_stop (struct bpstats *bs, int print_frame)
 {
   struct interp *interp = current_interpreter;
-  struct thread_info *tp;
 
-  if (!print_frame)
-    return;
+  if (print_frame)
+    {
+      struct thread_info *tp = inferior_thread ();
 
-  tp = inferior_thread ();
-
-  /* "finish" is handled in cli_on_finish_command_done.  */
-  if (tp->control.proceed_to_finish)
-    return;
-
-  /* Broadcast asynchronous stops to all consoles.  If we just
-     finished a step, print this to the console if it was the console
-     that started the step in the first place.  */
-  if (should_print_stop_to_console (interp, tp))
-    print_stop_event (interp_ui_out (interp));
+      /* "finish" is handled in cli_on_finish_command_done.  */
+      if (!tp->control.proceed_to_finish)
+	{
+	  /* Broadcast asynchronous stops to all consoles.  If we just
+	     finished a step, print this to the console if it was the
+	     console that started the step in the first place.  */
+	  if (should_print_stop_to_console (interp, tp))
+	    print_stop_event (interp_ui_out (interp));
+	}
+    }
 }
+
+void cli_on_sync_execution_done (void);
+void cli_on_try_enable_input (void);
 
 /* Observer for the sync_execution_done notification.  */
 
 void
 cli_on_sync_execution_done (void)
 {
-  if (sync_execution)
+  if (sync_execution == 1)
     {
       async_enable_stdin ();
-      display_gdb_prompt (NULL);
+
+      /* Display the prompt */
+      sync_execution = -1;
+    }
+}
+
+void
+cli_on_try_enable_input (void)
+{
+  if (sync_execution == -1)
+    {
+      sync_execution = 0;
+
+      if (interpreter_async)
+	display_gdb_prompt (NULL);
     }
 }
 
@@ -206,6 +222,7 @@ cli_on_sync_execution_done (void)
 void
 cli_on_command_error (void)
 {
+  sync_execution = 0;
   display_gdb_prompt (NULL);
 }
 
@@ -350,6 +367,7 @@ static const struct interp_procs console_interp_procs = {
   cli_on_exited,
   cli_on_no_history,
   cli_on_sync_execution_done,
+  cli_on_try_enable_input,
   NULL, /* on_new_thread */
   NULL, /* on_thread_exit */
   NULL, /* on_on_target_resumed */

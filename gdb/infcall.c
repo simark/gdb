@@ -419,7 +419,7 @@ run_inferior_call (struct thread_info *call_thread, CORE_ADDR real_pc)
 	     async_enable_stdin, so reset it again here.  In other
 	     cases, stdin will be re-enabled by
 	     inferior_event_handler, when an exception is thrown.  */
-	  if (was_sync)
+	  if (was_sync <= 0)
 	    async_disable_stdin ();
 	}
     }

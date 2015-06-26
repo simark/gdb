@@ -3357,10 +3357,8 @@ fetch_inferior_event (void *client_data)
   /* If the inferior was in sync execution mode, and now isn't,
      restore the prompt (a synchronous execution command has finished,
      and we're ready for input).  */
-  if (interpreter_async /* && was_sync && !sync_execution */ && cmd_done
-      && (ptid_equal (inferior_ptid, null_ptid)
-	  || !is_running (inferior_ptid)))
-    observer_notify_sync_execution_done ();
+  if (cmd_done)
+    observer_notify_try_enable_input ();
 
   /* Revert thread and frame.  */
   do_cleanups (old_chain);
@@ -6688,6 +6686,7 @@ normal_stop (void)
 
   // target_terminal_ours ();
   //  async_enable_stdin ();
+  observer_notify_sync_execution_done ();
 
   /* Set the current source location.  This will also happen if we
      display the frame below, but the current SAL will be incorrect
