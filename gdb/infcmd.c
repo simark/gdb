@@ -903,8 +903,17 @@ delete_longjmp_breakpoint_cleanup (void *arg)
 
 #include "exec-cmd-sm.h"
 
-struct step_exec_cmd_sm;
-static int step_once (struct step_exec_cmd_sm *sm);
+struct step_exec_cmd_sm
+{
+  /* The base class.  */
+  struct exec_cmd_sm exec_cmd_sm;
+
+  int count;
+  int skip_subroutines;
+  int single_inst;
+  int thread;
+};
+
 static void step_exec_cmd_sm_dtor (struct exec_cmd_sm *self);
 static int step_exec_cmd_sm_should_stop (struct exec_cmd_sm *self);
 static void step_exec_cmd_sm_clean_up (struct exec_cmd_sm *self);
@@ -916,16 +925,7 @@ static struct exec_cmd_sm_ops step_exec_cmd_sm_ops =
   step_exec_cmd_sm_clean_up,
 };
 
-struct step_exec_cmd_sm
-{
-  /* The base class.  */
-  struct exec_cmd_sm exec_cmd_sm;
-
-  int count;
-  int skip_subroutines;
-  int single_inst;
-  int thread;
-};
+static int step_once (struct step_exec_cmd_sm *sm);
 
 static void
 step_1 (int skip_subroutines, int single_inst, char *count_string)
@@ -1109,7 +1109,7 @@ step_once (struct step_exec_cmd_sm *sm)
 	      if (find_pc_partial_function (pc, &name,
 					    &tp->control.step_range_start,
 					    &tp->control.step_range_end) == 0)
-		error (_("Cannot find bounds of current function"));
+	      error (_("Cannot find bounds of current function"));
 
 	      target_terminal_ours ();
 	      printf_filtered (_("Single stepping until exit from function %s,"
@@ -1563,18 +1563,21 @@ get_return_value (struct value *function, struct type *value_type,
   return value;
 }
 
+struct return_value_info
+{
+  struct type *type;
+  struct value *value;
+  int value_history_index;
+};
+
 /* Print the result of a function at the end of a 'finish' command.
    DTOR_DATA (if not NULL) can represent inferior registers right after
    an inferior call has finished.  */
 
 static void
-print_return_value (struct value *function, struct type *value_type,
-		    struct dummy_frame_context_saver *ctx_saver)
+print_return_value_1 (struct ui_out *uiout, struct return_value_info *rv)
 {
-  struct value *value = get_return_value (function, value_type, ctx_saver);
-  struct ui_out *uiout = current_uiout;
-
-  if (value)
+  if (rv->value)
     {
       struct value_print_options opts;
       struct ui_file *stb;
@@ -1585,10 +1588,10 @@ print_return_value (struct value *function, struct type *value_type,
       old_chain = make_cleanup_ui_file_delete (stb);
       ui_out_text (uiout, "Value returned is ");
       ui_out_field_fmt (uiout, "gdb-result-var", "$%d",
-			record_latest_value (value));
+			rv->value_history_index);
       ui_out_text (uiout, " = ");
       get_no_prettyformat_print_options (&opts);
-      value_print (value, stb, &opts);
+      value_print (rv->value, stb, &opts);
       ui_out_field_stream (uiout, "return-value", stb);
       ui_out_text (uiout, "\n");
       do_cleanups (old_chain);
@@ -1598,7 +1601,7 @@ print_return_value (struct value *function, struct type *value_type,
       struct cleanup *oldchain;
       char *type_name;
 
-      type_name = type_to_string (value_type);
+      type_name = type_to_string (rv->type);
       oldchain = make_cleanup (xfree, type_name);
       ui_out_text (uiout, "Value returned has type: ");
       ui_out_field_string (uiout, "return-type", type_name);
@@ -1606,6 +1609,26 @@ print_return_value (struct value *function, struct type *value_type,
       ui_out_text (uiout, " Cannot determine contents\n");
       do_cleanups (oldchain);
     }
+}
+
+void
+print_return_value (struct ui_out *uiout, struct return_value_info *rv)
+{
+  if (rv->type == NULL)
+    return;
+
+  TRY
+    {
+      /* print_return_value_1 can throw an exception in some
+	 circumstances.  We need to catch this so that we still
+	 delete the breakpoint.  */
+      print_return_value_1 (uiout, rv);
+    }
+  CATCH (ex, RETURN_MASK_ALL)
+    {
+      exception_print (gdb_stdout, ex);
+    }
+  END_CATCH
 }
 
 /* Stuff that needs to be done by the finish command after the target
@@ -1616,12 +1639,17 @@ print_return_value (struct value *function, struct type *value_type,
    is in fetch_inferior_event, which is called by the event loop as
    soon as it detects that the target has stopped.  */
 
-struct finish_command_continuation_args
+struct finish_exec_cmd_sm
 {
+  /* The base class.  */
+  struct exec_cmd_sm exec_cmd_sm;
+
   /* The thread that as current when the command was executed.  */
   int thread;
   struct breakpoint *breakpoint;
   struct symbol *function;
+
+  struct return_value_info return_value;
 
   /* Inferior registers stored right before dummy_frame has been freed
      after an inferior call.  It can be NULL if no inferior call was
@@ -1629,73 +1657,79 @@ struct finish_command_continuation_args
   struct dummy_frame_context_saver *ctx_saver;
 };
 
-static void
-finish_command_continuation (void *arg, int err)
+static void finish_exec_cmd_sm_dtor (struct exec_cmd_sm *self);
+static int finish_exec_cmd_sm_should_stop (struct exec_cmd_sm *self);
+static void finish_exec_cmd_sm_clean_up (struct exec_cmd_sm *self);
+static struct return_value_info *
+  finish_exec_cmd_sm_return_value (struct exec_cmd_sm *self);
+
+static struct exec_cmd_sm_ops finish_exec_cmd_sm_ops =
 {
-  struct finish_command_continuation_args *a = arg;
+  finish_exec_cmd_sm_dtor,
+  finish_exec_cmd_sm_should_stop,
+  finish_exec_cmd_sm_clean_up,
+  finish_exec_cmd_sm_return_value,
+};
 
-  if (!err)
+static int
+finish_exec_cmd_sm_should_stop (struct exec_cmd_sm *self)
+{
+  struct finish_exec_cmd_sm *f = (struct finish_exec_cmd_sm *) self;
+  struct return_value_info *rv = &f->return_value;
+
+  if (target_has_execution)
     {
-      struct thread_info *tp = NULL;
-      bpstat bs = NULL;
+      struct thread_info *tp = inferior_thread ();
 
-      if (!ptid_equal (inferior_ptid, null_ptid)
-	  && target_has_execution
-	  && is_stopped (inferior_ptid))
+      if (tp->num == f->thread
+	  && f->function != NULL
+	  && bpstat_find_breakpoint (tp->control.stop_bpstat,
+				     f->breakpoint) != NULL)
 	{
-	  tp = inferior_thread ();
-	  bs = tp->control.stop_bpstat;
-	}
-
-      if (bpstat_find_breakpoint (bs, a->breakpoint) != NULL
-	  && a->function != NULL)
-	{
-	  struct type *value_type;
-
-	  value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (a->function));
-	  if (!value_type)
+	  rv->type = TYPE_TARGET_TYPE (SYMBOL_TYPE (f->function));
+	  if (rv->type == NULL)
 	    internal_error (__FILE__, __LINE__,
 			    _("finish_command: function has no target type"));
 
-	  if (TYPE_CODE (value_type) != TYPE_CODE_VOID)
+	  if (TYPE_CODE (rv->type) != TYPE_CODE_VOID)
 	    {
 	      struct value *func;
 
-	      func = read_var_value (a->function, get_current_frame ());
-	      TRY
-		{
-		  /* print_return_value can throw an exception in some
-		     circumstances.  We need to catch this so that we still
-		     delete the breakpoint.  */
-		  print_return_value (func, value_type, a->ctx_saver);
-		}
-	      CATCH (ex, RETURN_MASK_ALL)
-		{
-		  exception_print (gdb_stdout, ex);
-		}
-	      END_CATCH
+	      func = read_var_value (f->function, get_current_frame ());
+	      rv->value = get_return_value (func, rv->type, NULL);
+	      rv->value_history_index = record_latest_value (rv->value);
 	    }
 	}
-
-      /* We suppress normal call of normal_stop observer and do it
-	 here so that the *stopped notification includes the return
-	 value.  */
-      if (bs != NULL && tp->control.proceed_to_finish)
-	observer_notify_normal_stop (bs, 1 /* print frame */);
     }
 
-  delete_breakpoint (a->breakpoint);
-  delete_longjmp_breakpoint (a->thread);
+  return 1;
+}
+
+static struct return_value_info *
+finish_exec_cmd_sm_return_value (struct exec_cmd_sm *self)
+{
+  struct finish_exec_cmd_sm *f = (struct finish_exec_cmd_sm *) self;
+
+  return &f->return_value;
 }
 
 static void
-finish_command_continuation_free_arg (void *arg)
+finish_exec_cmd_sm_clean_up (struct exec_cmd_sm *self)
 {
-  struct finish_command_continuation_args *cargs = arg;
+  struct finish_exec_cmd_sm *f = (struct finish_exec_cmd_sm *) self;
 
-  if (cargs->ctx_saver != NULL)
-    dummy_frame_context_saver_drop (cargs->ctx_saver);
-  xfree (cargs);
+  delete_breakpoint (f->breakpoint);
+  delete_longjmp_breakpoint (f->thread);
+}
+
+static void
+finish_exec_cmd_sm_dtor (struct exec_cmd_sm *self)
+{
+  struct finish_exec_cmd_sm *f = (struct finish_exec_cmd_sm *) self;
+
+  if (f->ctx_saver != NULL)
+    dummy_frame_context_saver_drop (f->ctx_saver);
+  xfree (f);
 }
 
 /* finish_backward -- helper function for finish_command.  */
@@ -1761,7 +1795,7 @@ finish_forward (struct symbol *function, struct frame_info *frame)
   struct thread_info *tp = inferior_thread ();
   struct breakpoint *breakpoint;
   struct cleanup *old_chain = make_cleanup (null_cleanup, NULL);
-  struct finish_command_continuation_args *cargs;
+  struct finish_exec_cmd_sm *sm;
   int thread = tp->num;
   struct dummy_frame_context_saver *saver = NULL;
 
@@ -1789,14 +1823,17 @@ finish_forward (struct symbol *function, struct frame_info *frame)
 
   /* We want to print return value, please...  */
   tp->control.proceed_to_finish = 1;
-  cargs = xmalloc (sizeof (*cargs));
 
-  cargs->thread = thread;
-  cargs->breakpoint = breakpoint;
-  cargs->function = function;
-  cargs->ctx_saver = saver;
-  add_continuation (tp, finish_command_continuation, cargs,
-                    finish_command_continuation_free_arg);
+  sm = XCNEW (struct finish_exec_cmd_sm);
+  exec_cmd_sm_ctor (&sm->exec_cmd_sm, &finish_exec_cmd_sm_ops);
+
+  sm->thread = thread;
+  sm->breakpoint = breakpoint;
+  sm->function = function;
+  sm->ctx_saver = saver;
+
+  tp->exec_cmd_sm = &sm->exec_cmd_sm;
+
   proceed ((CORE_ADDR) -1, GDB_SIGNAL_DEFAULT);
 
   discard_cleanups (old_chain);

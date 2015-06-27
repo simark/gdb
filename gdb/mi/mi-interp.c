@@ -470,16 +470,6 @@ mi_inferior_removed (struct inferior *inf)
   gdb_flush (mi->event_channel);
 }
 
-/* Cleanup that restores a previous current uiout.  */
-
-static void
-restore_current_uiout_cleanup (void *arg)
-{
-  struct ui_out *saved_uiout = arg;
-
-  current_uiout = saved_uiout;
-}
-
 /* Return the MI interpreter, if it is active -- either because it's
    the top-level interpreter or the interpreter executing the current
    command.  Returns NULL if the MI interpreter is not being used.  */
@@ -597,73 +587,40 @@ mi_on_normal_stop (struct bpstats *bs, int print_frame)
 
   if (print_frame)
     {
+      struct thread_info *tp;
       int core;
 
-      if (current_uiout != mi_uiout)
+      print_stop_event (mi_uiout);
+
+      /* Breakpoint hits should always be mirrored to the console.
+	 Deciding what to mirror to the console wrt to breakpoints and
+	 random stops gets messy real fast.  E.g., say "s" trips on a
+	 breakpoint.  We'd clearly want to mirror the event to the
+	 console in this case.  But what about more complicated cases
+	 like "s&; thread n; s&", and one of those steps spawning a
+	 new thread, and that thread hitting a breakpoint?  It's
+	 impossible in general to track whether the thread had any
+	 relation to the commands that had been executed.  So we just
+	 simplify and always mirror breakpoints and random events to
+	 the console.
+
+	 Also, CLI execution commands (-interpreter-exec console
+	 "next", for example) in async mode have the opposite issue as
+	 described in the "then" branch above -- normal_stop has
+	 already printed frame information to MI uiout, but nothing
+	 has printed the same information to the CLI channel.  We
+	 should print the source line to the console when stepping or
+	 other similar commands, iff the step was started by a console
+	 command (but not if it was started with -exec-step or
+	 similar).  */
+      tp = inferior_thread ();
+      if (tp->control.command_interp != NULL
+	  && tp->control.command_interp != top_level_interpreter ())
 	{
-	  /* The normal_stop function has printed frame information
-	     into CLI uiout, or some other non-MI uiout.  There's no
-	     way we can extract proper fields from random uiout
-	     object, so we print the frame again.  In practice, this
-	     can only happen when running a CLI command in MI.  */
-	  struct ui_out *saved_uiout = current_uiout;
-	  struct target_waitstatus last;
-	  ptid_t last_ptid;
+	  struct mi_interp *mi = top_level_interpreter_data ();
+	  extern void cli_print_stop_event (struct ui_out *uiout);
 
-	  current_uiout = mi_uiout;
-
-	  get_last_target_status (&last_ptid, &last);
-	  print_stop_event (&last);
-
-	  current_uiout = saved_uiout;
-	}
-      /* Otherwise, frame information has already been printed by
-	 normal_stop.  */
-      else
-	{
-	  /* Breakpoint hits should always be mirrored to the console.
-	     Deciding what to mirror to the console wrt to breakpoints
-	     and random stops gets messy real fast.  E.g., say "s"
-	     trips on a breakpoint.  We'd clearly want to mirror the
-	     event to the console in this case.  But what about more
-	     complicated cases like "s&; thread n; s&", and one of
-	     those steps spawning a new thread, and that thread
-	     hitting a breakpoint?  It's impossible in general to
-	     track whether the thread had any relation to the commands
-	     that had been executed.  So we just simplify and always
-	     mirror breakpoints and random events to the console.
-
-	     Also, CLI execution commands (-interpreter-exec console
-	     "next", for example) in async mode have the opposite
-	     issue as described in the "then" branch above --
-	     normal_stop has already printed frame information to MI
-	     uiout, but nothing has printed the same information to
-	     the CLI channel.  We should print the source line to the
-	     console when stepping or other similar commands, iff the
-	     step was started by a console command (but not if it was
-	     started with -exec-step or similar).  */
-	  struct thread_info *tp = inferior_thread ();
-
-	  if ((!tp->control.stop_step
-		  && !tp->control.proceed_to_finish)
-	      || (tp->control.command_interp != NULL
-		  && tp->control.command_interp != top_level_interpreter ()))
-	    {
-	      struct mi_interp *mi = top_level_interpreter_data ();
-	      struct target_waitstatus last;
-	      ptid_t last_ptid;
-	      struct cleanup *old_chain;
-
-	      /* Set the current uiout to CLI uiout temporarily.  */
-	      old_chain = make_cleanup (restore_current_uiout_cleanup,
-					current_uiout);
-	      current_uiout = mi->cli_uiout;
-
-	      get_last_target_status (&last_ptid, &last);
-	      print_stop_event (&last);
-
-	      do_cleanups (old_chain);
-	    }
+	  cli_print_stop_event (mi->cli_uiout);
 	}
 
       ui_out_field_int (mi_uiout, "thread-id",

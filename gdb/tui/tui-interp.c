@@ -51,9 +51,42 @@ tui_exit (void)
   tui_disable ();
 }
 
+#include "exec-cmd-sm.h"
+#include "gdbthread.h"
+
+void cli_print_stop_event (struct ui_out *uiout);
+
+void
+cli_print_stop_event (struct ui_out *uiout)
+{
+  struct thread_info *tp = inferior_thread ();
+
+  print_stop_event (uiout);
+  if (tp->exec_cmd_sm != NULL
+      && tp->exec_cmd_sm->ops->return_value != NULL)
+    {
+      struct return_value_info *rv;
+
+      rv = tp->exec_cmd_sm->ops->return_value (tp->exec_cmd_sm);
+      if (rv != NULL)
+	print_return_value (uiout, rv);
+    }
+}
+
 /* Observers for several run control events.  If the interpreter is
    quiet (i.e., another interpreter is being run with
    interpreter-exec), print nothing.  */
+
+
+static void
+tui_on_normal_stop (struct bpstats *bs, int print_frame)
+{
+  if (!interp_quiet_p (tui_interp))
+    {
+      if (print_frame)
+	cli_print_stop_event (tui_ui_out (tui_interp));
+    }
+}
 
 /* Observer for the signal_received notification.  */
 
@@ -134,6 +167,7 @@ tui_init (struct interp *self, int top_level)
     tui_initialize_readline ();
 
   /* If changing this, remember to update cli-interp.c as well.  */
+  observer_attach_normal_stop (tui_on_normal_stop);
   observer_attach_signal_received (tui_on_signal_received);
   observer_attach_end_stepping_range (tui_on_end_stepping_range);
   observer_attach_signal_exited (tui_on_signal_exited);

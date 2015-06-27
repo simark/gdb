@@ -19,15 +19,7 @@
 #ifndef EXEC_CMD_SM_H
 #define EXEC_CMD_SM_H
 
-struct symtab;
-
-#include "breakpoint.h"
-#include "frame.h"
-#include "ui-out.h"
-#include "inferior.h"
-#include "btrace.h"
-#include "common/vec.h"
-#include "target/waitstatus.h"
+struct return_value_info;
 
 /* To continue the execution commands when running gdb asynchronously.
    A continuation structure contains a pointer to a function to be
@@ -45,6 +37,8 @@ struct exec_cmd_sm_ops
   int (*should_stop) (struct exec_cmd_sm *self);
 
   void (*clean_up) (struct exec_cmd_sm *self);
+
+  struct return_value_info *(*return_value) (struct exec_cmd_sm *self);
 };
 
 struct exec_cmd_sm

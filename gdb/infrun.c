@@ -7685,8 +7685,8 @@ print_no_history_reason (struct ui_out *uiout)
    bpstat_print contains the logic deciding in detail what to print,
    based on the event(s) that just occurred.  */
 
-void
-print_stop_event (struct target_waitstatus *ws)
+static void
+print_stop_event_1 (struct target_waitstatus *ws)
 {
   int bpstat_ret;
   int source_flag;
@@ -7740,6 +7740,34 @@ print_stop_event (struct target_waitstatus *ws)
 
   /* Display the auto-display expressions.  */
   do_displays ();
+}
+
+/* Cleanup that restores a previous current uiout.  */
+
+static void
+restore_current_uiout_cleanup (void *arg)
+{
+  struct ui_out *saved_uiout = arg;
+
+  current_uiout = saved_uiout;
+}
+
+void
+print_stop_event (struct ui_out *uiout)
+{
+  struct cleanup *old_chain;
+  struct target_waitstatus last;
+  ptid_t last_ptid;
+
+  old_chain = make_cleanup (restore_current_uiout_cleanup,
+			    current_uiout);
+  current_uiout = uiout;
+
+  get_last_target_status (&last_ptid, &last);
+
+  print_stop_event_1 (&last);
+
+  do_cleanups (old_chain);
 }
 
 /* Here to return control to GDB when the inferior stops for real.
@@ -7902,15 +7930,7 @@ normal_stop (void)
      or if the program has exited.  */
 
   if (!stop_stack_dummy)
-    {
-      select_frame (get_current_frame ());
-
-      /* If --batch-silent is enabled then there's no need to print the current
-	 source location, and to try risks causing an error message about
-	 missing source files.  */
-      if (stop_print_frame && !batch_silent)
-	print_stop_event (&last);
-    }
+    select_frame (get_current_frame ());
 
   if (stop_stack_dummy == STOP_STACK_DUMMY)
     {
@@ -7938,12 +7958,6 @@ done:
 
   /* Suppress the stop observer if we're in the middle of:
 
-     - a step n (n > 1), as there still more steps to be done.
-
-     - a "finish" command, as the observer will be called in
-       finish_command_continuation, so it can include the inferior
-       function's return value.
-
      - calling an inferior function, as we pretend we inferior didn't
        run at all.  The return value of the call is handled by the
        expression evaluator, through call_function_by_hand.  */
@@ -7952,9 +7966,7 @@ done:
       || last.kind == TARGET_WAITKIND_SIGNALLED
       || last.kind == TARGET_WAITKIND_EXITED
       || last.kind == TARGET_WAITKIND_NO_RESUMED
-      || (!(inferior_thread ()->control.stop_bpstat
-	    && inferior_thread ()->control.proceed_to_finish)
-	  && !inferior_thread ()->control.in_infcall))
+      || !inferior_thread ()->control.in_infcall)
     {
       if (!ptid_equal (inferior_ptid, null_ptid))
 	observer_notify_normal_stop (inferior_thread ()->control.stop_bpstat,
