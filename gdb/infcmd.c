@@ -92,8 +92,6 @@ static void signal_command (char *, int);
 static void jump_command (char *, int);
 
 static void step_1 (int, int, char *);
-static void step_once (int skip_subroutines, int single_inst,
-		       int count, int thread);
 
 static void next_command (char *, int);
 
@@ -903,6 +901,32 @@ delete_longjmp_breakpoint_cleanup (void *arg)
   delete_longjmp_breakpoint (thread);
 }
 
+#include "exec-cmd-sm.h"
+
+struct step_exec_cmd_sm;
+static int step_once (struct step_exec_cmd_sm *sm);
+static void step_exec_cmd_sm_dtor (struct exec_cmd_sm *self);
+static int step_exec_cmd_sm_should_stop (struct exec_cmd_sm *self);
+static void step_exec_cmd_sm_clean_up (struct exec_cmd_sm *self);
+
+static struct exec_cmd_sm_ops step_exec_cmd_sm_ops =
+{
+  step_exec_cmd_sm_dtor,
+  step_exec_cmd_sm_should_stop,
+  step_exec_cmd_sm_clean_up,
+};
+
+struct step_exec_cmd_sm
+{
+  /* The base class.  */
+  struct exec_cmd_sm exec_cmd_sm;
+
+  int count;
+  int skip_subroutines;
+  int single_inst;
+  int thread;
+};
+
 static void
 step_1 (int skip_subroutines, int single_inst, char *count_string)
 {
@@ -911,6 +935,8 @@ step_1 (int skip_subroutines, int single_inst, char *count_string)
   int async_exec;
   int thread = -1;
   struct cleanup *args_chain;
+  struct thread_info *thr;
+  struct step_exec_cmd_sm *step_sm;
 
   ERROR_NO_INFERIOR;
   ensure_not_tfind_mode ();
@@ -939,24 +965,51 @@ step_1 (int skip_subroutines, int single_inst, char *count_string)
       make_cleanup (delete_longjmp_breakpoint_cleanup, &thread);
     }
 
+  thr = inferior_thread ();
+
+  clear_proceed_status (1);
+
+  thr->control.stepping_command = 1;
+
+  /* Register a continuation to do any additional steps.  */
+  step_sm = XNEW (struct step_exec_cmd_sm);
+  exec_cmd_sm_ctor (&step_sm->exec_cmd_sm, &step_exec_cmd_sm_ops);
+
+  step_sm->skip_subroutines = skip_subroutines;
+  step_sm->single_inst = single_inst;
+  step_sm->count = count;
+  step_sm->thread = thread;
+
+  thr->exec_cmd_sm = &step_sm->exec_cmd_sm;
+
   /* do only one step for now, before returning control to the event
      loop.  Let the continuation figure out how many other steps we
      need to do, and handle them one at the time, through
      step_once.  */
-  step_once (skip_subroutines, single_inst, count, thread);
+  if (!step_once (step_sm))
+    proceed ((CORE_ADDR) -1, GDB_SIGNAL_DEFAULT);
+  else
+    {
+      /* Pretend that we've stopped.  */
+      normal_stop ();
+      step_sm->exec_cmd_sm.ops->clean_up (&step_sm->exec_cmd_sm);
+      step_sm->exec_cmd_sm.ops->dtor (&step_sm->exec_cmd_sm);
+      thr->exec_cmd_sm = NULL;
+      inferior_event_handler (INF_EXEC_COMPLETE, NULL);
+    }
 
   /* We are running, and the continuation is installed.  It will
      disable the longjmp breakpoint as appropriate.  */
   discard_cleanups (cleanups);
 }
 
-struct step_1_continuation_args
+static void
+step_exec_cmd_sm_dtor (struct exec_cmd_sm *self)
 {
-  int count;
-  int skip_subroutines;
-  int single_inst;
-  int thread;
-};
+  struct step_exec_cmd_sm *step_sm = (struct step_exec_cmd_sm *) self;
+
+  xfree (step_sm);
+}
 
 /* Called after we are done with one step operation, to check whether
    we need to step again, before we print the prompt and return control
@@ -964,31 +1017,33 @@ struct step_1_continuation_args
    proceed(), via step_once().  Basically it is like step_once and
    step_1_continuation are co-recursive.  */
 
-static void
-step_1_continuation (void *args, int err)
+static int
+step_exec_cmd_sm_should_stop (struct exec_cmd_sm *self)
 {
-  struct step_1_continuation_args *a = args;
+  struct step_exec_cmd_sm *a = (struct step_exec_cmd_sm *) self;
 
   if (target_has_execution)
     {
       struct thread_info *tp;
 
       tp = inferior_thread ();
-      if (!err
-	  && tp->step_multi && tp->control.stop_step)
+      if (tp->control.stop_step)
 	{
 	  /* There are more steps to make, and we did stop due to
 	     ending a stepping range.  Do another step.  */
-	  step_once (a->skip_subroutines, a->single_inst,
-		     a->count - 1, a->thread);
-	  return;
+	  if (--a->count > 0)
+	    return step_once (a);
 	}
-      tp->step_multi = 0;
     }
 
-  /* We either hit an error, or stopped for some reason that is
-     not stepping, or there are no further steps to make.
-     Cleanup.  */
+  return 1;
+}
+
+static void
+step_exec_cmd_sm_clean_up (struct exec_cmd_sm *self)
+{
+  struct step_exec_cmd_sm *a = (struct step_exec_cmd_sm *) self;
+
   if (!a->single_inst || a->skip_subroutines)
     delete_longjmp_breakpoint (a->thread);
 }
@@ -999,29 +1054,27 @@ step_1_continuation (void *args, int err)
    this one step).  For synch targets, the caller handles further
    stepping.  */
 
-static void
-step_once (int skip_subroutines, int single_inst, int count, int thread)
+static int
+step_once (struct step_exec_cmd_sm *sm)
 {
-  struct frame_info *frame = get_current_frame ();
-
-  if (count > 0)
+  if (sm->count > 0)
     {
-      struct step_1_continuation_args *args;
+      struct frame_info *frame = get_current_frame ();
+
       /* Don't assume THREAD is a valid thread id.  It is set to -1 if
 	 the longjmp breakpoint was not required.  Use the
 	 INFERIOR_PTID thread instead, which is the same thread when
 	 THREAD is set.  */
       struct thread_info *tp = inferior_thread ();
 
-      clear_proceed_status (1);
       set_step_frame ();
 
-      if (!single_inst)
+      if (!sm->single_inst)
 	{
 	  CORE_ADDR pc;
 
 	  /* Step at an inlined function behaves like "down".  */
-	  if (!skip_subroutines
+	  if (!sm->skip_subroutines
 	      && inline_skipped_frames (inferior_ptid))
 	    {
 	      ptid_t resume_ptid;
@@ -1031,17 +1084,9 @@ step_once (int skip_subroutines, int single_inst, int count, int thread)
 	      set_running (resume_ptid, 1);
 
 	      step_into_inline_frame (inferior_ptid);
-	      if (count > 1)
-		step_once (skip_subroutines, single_inst, count - 1, thread);
-	      else
-		{
-		  /* Pretend that we've stopped.  */
-		  normal_stop ();
-
-		  if (target_can_async_p ())
-		    inferior_event_handler (INF_EXEC_COMPLETE, NULL);
-		}
-	      return;
+	      if (--sm->count > 0)
+		return step_once (sm);
+	      return 1;
 	    }
 
 	  pc = get_frame_pc (frame);
@@ -1076,29 +1121,20 @@ step_once (int skip_subroutines, int single_inst, int count, int thread)
 	{
 	  /* Say we are stepping, but stop after one insn whatever it does.  */
 	  tp->control.step_range_start = tp->control.step_range_end = 1;
-	  if (!skip_subroutines)
+	  if (!sm->skip_subroutines)
 	    /* It is stepi.
 	       Don't step over function calls, not even to functions lacking
 	       line numbers.  */
 	    tp->control.step_over_calls = STEP_OVER_NONE;
 	}
 
-      if (skip_subroutines)
+      if (sm->skip_subroutines)
 	tp->control.step_over_calls = STEP_OVER_ALL;
 
-      tp->step_multi = (count > 1);
-      tp->control.stepping_command = 1;
-      proceed ((CORE_ADDR) -1, GDB_SIGNAL_DEFAULT);
-
-      /* Register a continuation to do any additional steps.  */
-      args = xmalloc (sizeof (*args));
-      args->skip_subroutines = skip_subroutines;
-      args->single_inst = single_inst;
-      args->count = count;
-      args->thread = thread;
-
-      add_intermediate_continuation (tp, step_1_continuation, args, xfree);
+      return 0;
     }
+
+  return 1;
 }
 
 
@@ -1399,8 +1435,6 @@ until_next_command (int from_tty)
   tp->control.may_range_step = 1;
 
   tp->control.step_over_calls = STEP_OVER_ALL;
-
-  tp->step_multi = 0;		/* Only one call to proceed */
 
   set_longjmp_breakpoint (tp, get_frame_id (frame));
   old_chain = make_cleanup (delete_longjmp_breakpoint_cleanup, &thread);

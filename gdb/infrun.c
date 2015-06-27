@@ -62,6 +62,7 @@
 #include "terminal.h"
 #include "solist.h"
 #include "event-loop.h"
+#include "exec-cmd-sm.h"
 
 /* Prototypes for local functions */
 
@@ -2737,6 +2738,10 @@ clear_proceed_status_thread (struct thread_info *tp)
   if (!signal_pass_state (tp->suspend.stop_signal))
     tp->suspend.stop_signal = GDB_SIGNAL_0;
 
+  if (tp->exec_cmd_sm != NULL)
+    tp->exec_cmd_sm->ops->dtor (tp->exec_cmd_sm);
+  tp->exec_cmd_sm = NULL;
+
   tp->control.trap_expected = 0;
   tp->control.step_range_start = 0;
   tp->control.step_range_end = 0;
@@ -3784,22 +3789,54 @@ fetch_inferior_event (void *client_data)
   if (!ecs->wait_some_more)
     {
       struct inferior *inf = find_inferior_ptid (ecs->ptid);
+      int should_stop = 1;
 
       delete_just_stopped_threads_infrun_breakpoints ();
 
-      /* We may not find an inferior if this was a process exit.  */
-      if (inf == NULL || inf->control.stop_soon == NO_STOP_QUIETLY)
-	normal_stop ();
+      if (ecs->event_thread != NULL)
+	{
+	  struct exec_cmd_sm *exec_cmd_sm;
 
-      if (target_has_execution
-	  && ecs->ws.kind != TARGET_WAITKIND_NO_RESUMED
-	  && ecs->ws.kind != TARGET_WAITKIND_EXITED
-	  && ecs->ws.kind != TARGET_WAITKIND_SIGNALLED
-	  && ecs->event_thread->step_multi
-	  && ecs->event_thread->control.stop_step)
-	inferior_event_handler (INF_EXEC_CONTINUE, NULL);
+	  exec_cmd_sm = ecs->event_thread->exec_cmd_sm;
+	  if (exec_cmd_sm != NULL)
+	    should_stop = exec_cmd_sm->ops->should_stop (exec_cmd_sm);
+	}
+
+      if (!should_stop)
+	{
+	  keep_going (ecs);
+	}
       else
 	{
+	  if (!non_stop)
+	    {
+	      struct thread_info *thr;
+
+	      ALL_NON_EXITED_THREADS (thr)
+	        {
+		  struct exec_cmd_sm *exec_cmd_sm;
+
+#if 0
+		  if (thr == ecs->event_thread)
+		    continue;
+#endif
+
+		  if (thr->exec_cmd_sm == NULL)
+		    continue;
+
+		  switch_to_thread (thr->ptid);
+		  exec_cmd_sm = thr->exec_cmd_sm;
+		  exec_cmd_sm->ops->clean_up (exec_cmd_sm);
+		}
+
+	      if (ecs->event_thread != NULL)
+		switch_to_thread (ecs->event_thread->ptid);
+	    }
+
+	  /* We may not find an inferior if this was a process exit.  */
+	  if (inf == NULL || inf->control.stop_soon == NO_STOP_QUIETLY)
+	    normal_stop ();
+
 	  inferior_event_handler (INF_EXEC_COMPLETE, NULL);
 	  cmd_done = 1;
 	}
@@ -7821,11 +7858,6 @@ normal_stop (void)
       && last.kind != TARGET_WAITKIND_EXITED
       && inferior_thread ()->control.stop_step)
     {
-      /* But not if in the middle of doing a "step n" operation for
-	 n > 1 */
-      if (inferior_thread ()->step_multi)
-	goto done;
-
       observer_notify_end_stepping_range ();
     }
 
@@ -7920,10 +7952,8 @@ done:
       || last.kind == TARGET_WAITKIND_SIGNALLED
       || last.kind == TARGET_WAITKIND_EXITED
       || last.kind == TARGET_WAITKIND_NO_RESUMED
-      || (!(inferior_thread ()->step_multi
-	    && inferior_thread ()->control.stop_step)
-	  && !(inferior_thread ()->control.stop_bpstat
-	       && inferior_thread ()->control.proceed_to_finish)
+      || (!(inferior_thread ()->control.stop_bpstat
+	    && inferior_thread ()->control.proceed_to_finish)
 	  && !inferior_thread ()->control.in_infcall))
     {
       if (!ptid_equal (inferior_ptid, null_ptid))

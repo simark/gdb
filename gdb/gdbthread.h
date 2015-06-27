@@ -279,9 +279,7 @@ struct thread_info
      command.  */
   struct continuation *intermediate_continuations;
 
-  /* If stepping, nonzero means step count is > 1 so don't print frame
-     next time inferior stops if it stops due to stepping.  */
-  int step_multi;
+  struct exec_cmd_sm *exec_cmd_sm;
 
   /* This is used to remember when a fork or vfork event was caught by
      a catchpoint, and thus the event is to be followed at the next
